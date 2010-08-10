@@ -9,8 +9,8 @@ sp = "/"
 
 import re, sqlite3, sys, csv, datetime, types, time, os;
 from fwork import *;
-from TrainingSet_compress_v2 import *;
-from PatentDates_compress import *;
+#from TrainingSet_compress_v2 import *;
+#from PatentDates_compress import *;
 from minimize import *;
 
 def isNum(x):

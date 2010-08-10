@@ -1,1 +1,5 @@
-RON
+bmVerify compares the consolidated results with an existing benchmark
+
+compressBlk takes a "disambiguated" dataset and consolidates it into a new dataset.
+
+fwork.py are Python scripts I reuse
