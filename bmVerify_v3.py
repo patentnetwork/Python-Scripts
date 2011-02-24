@@ -1,172 +1,181 @@
-#ASSUMPTION ALL BENCHMARK DATA IS IN THE LARGE DATASET
-
 import sqlite3, sys, csv, datetime;
 from fwork import *;
 
-for output in ['invpatC_YBNA.good.Jan2011']:
-        uqB = "invnum_N"
-        tblB = "invpat"
-        fileS = "/home/ron/disambig/BM/DefTruth5.csv"
-        fileB = "/home/ysun/disambig/newcode/all/%s.sqlite3" % output
-        output = "/home/ayu/results_v2/%s_v2_DT5.csv" % output
-        #####
+def bmVerify(results, filepath="", outdir = ""):
+        """
+        Analysis function on disambiguation results, assuming that all benchmark data
+        are in the large results dataset.
 
-        ##subR  = raw_input("Matched report (N): ")
-        #----------------
-        t=datetime.datetime.now()
+        Creates analysis detail csv file and prints summary information on
+        over- and underclumping statistics.
 
-        print "Start time: " + str(datetime.datetime.now())
-        class freqUQ:
-            def __init__(self):
-                self.list=[]
-            def step(self, value):
-                self.list.append(value)
-            def finalize(self):
-                return sorted([(self.list.count(x), x) for x in set(self.list)], reverse=True)[0][1]
+        Running from the command line (make sure to set correct file paths in file)
+        python bmVerify_v3.py "input filepath" "output directory" databases
+        example:
+        python bmVerify_v3.py /home/ysun/disambig/newcode/all/ /home/ayu/results_v2/ invpatC_NBNA.good.Jan2011 invpatC_NBYA.good.Jan2011 invpatC_YBNA.good.Jan2011
 
-        #MAKE THIS SO IT CAN ATTACH SQLITE3 FOR BENCHMARK
-        dataS = uniVert([x for x in csv.reader(open("%s" % fileS, "rb"))])
-        #1 = Variables, 2 = Type, 3 = Format (If necessary), 4 = Matching Type
-        tList = ["%s %s" % (dataS[0][i], x) for i,x in enumerate(dataS[1]) if  x != ""]
+        Running interactively:
+        import bmVerify_v3
+        bmVerify(['final_r7', 'final_r8'], filepath="/home/ysun/disambig/newcode/all/", outdir = "/home/ayu/results_v2/")
+        
+        """
+        for result in results:
+                uqB = "invnum_N"
+                tblB = "invpat"
+                fileS = "/home/ron/disambig/BM/DefTruth5.csv"
+                fileB = filepath + "{result}.sqlite3".format(result=result)
+                output = outdir + "{result}_DELETE.csv".format(result=result)
 
-        dataS2 = [dataS[0]]
-        dataS2.extend(dataS[4:])
+                t=datetime.datetime.now()
 
-        #Format if its necessary --> Basically for Patents..
-        for i,x in enumerate(dataS[2]):
-            if x!="":
-                for j in xrange(1,len(dataS2)):
-                    if dataS2[j][i].isdigit():
-                        exec('dataS2[j][i] = "%s" %% int(dataS2[j][i])' % x)
+                print "Start time: " + str(datetime.datetime.now())
+                class freqUQ:
+                    def __init__(self):
+                        self.list=[]
+                    def step(self, value):
+                        self.list.append(value)
+                    def finalize(self):
+                        return sorted([(self.list.count(x), x) for x in set(self.list)], reverse=True)[0][1]
 
-        conn = sqlite3.connect(":memory:")
-        conn.create_function("jarow", 2, jarow)
-        conn.create_function("errD", 2, lambda x,y: (x!=y) and 1 or None)
-        conn.create_aggregate("freqUQ", 1, freqUQ)
-        c = conn.cursor()
+                #MAKE THIS SO IT CAN ATTACH SQLITE3 FOR BENCHMARK
+                dataS = uniVert([x for x in csv.reader(open(fileS, "rb"))])
+                #1 = Variables, 2 = Type, 3 = Format (If necessary), 4 = Matching Type
+                tList = ["%s %s" % (dataS[0][i], x) for i,x in enumerate(dataS[1]) if  x != ""]
 
-        #FIGURE OUT WHICH ONES HAVE EXACT/FUZZY
-        exact = [dataS[0][i] for i,x in enumerate(dataS[3]) if x.upper()[0]=="E"]
-        fuzzy = [dataS[0][i] for i,x in enumerate(dataS[3]) if x.upper()[0]=="F"]
-        uqS =   [dataS[0][i] for i,x in enumerate(dataS[3]) if x.upper()[0]=="U"][0]
+                dataS2 = [dataS[0]]
+                dataS2.extend(dataS[4:])
 
-        #CREATE INDEX, MERGE DATA BASED ON EXACTS
-        print "Creating indices... " + str(datetime.datetime.now())
-        exAnd = " AND ".join(["a.%s=b.%s" % (x, x) for x in exact])
-        exCom = ", ".join(exact)
+                #Format if its necessary --> Basically for Patents..
+                for i,x in enumerate(dataS[2]):
+                    if x!="":
+                        for j in xrange(1,len(dataS2)):
+                            if dataS2[j][i].isdigit():
+                                dataS2[j][i] = x % int(dataS2[j][i])
 
-        if fileB.split(".")[-1].lower()=="csv":
-            dataB = uniVert([x for x in csv.reader(open("%s" % fileB, "rb"))])
-            quickSQL(c, data=dataB,  table="dataB", header=True, typeList=["Patent VARCHAR"])
-            c.execute("CREATE INDEX IF NOT EXISTS dB_E ON dataB (%s)" % exCom)
-            c.execute("CREATE INDEX IF NOT EXISTS dB_U ON dataB (%s)" % uqB)
-            fBnme = "dataB"
-        else:
-            c.execute("ATTACH DATABASE '%s' AS db" % fileB)
-            if tblB=="":
-                fBnme = "db.%s" % fileB.split(".")[-2].split("/")[-1]
-            else:
-                fBnme = "db.%s" % tblB
+                conn = sqlite3.connect(":memory:")
+                conn.create_function("jarow", 2, jarow)
+                conn.create_function("errD", 2, lambda x,y: (x!=y) and 1 or None)
+                conn.create_aggregate("freqUQ", 1, freqUQ)
+                c = conn.cursor()
 
-        quickSQL(c, data=dataS2, table="dataS", header=True, typeList=tList)
+                #FIGURE OUT WHICH ONES HAVE EXACT/FUZZY
+                exact = [dataS[0][i] for i,x in enumerate(dataS[3]) if x.upper()[0]=="E"]
+                fuzzy = [dataS[0][i] for i,x in enumerate(dataS[3]) if x.upper()[0]=="F"]
+                uqS =   [dataS[0][i] for i,x in enumerate(dataS[3]) if x.upper()[0]=="U"][0]
 
-        if fuzzy:
-            c.execute("CREATE INDEX IF NOT EXISTS dS_E ON dataS (%s);" % (exCom))
-            c.executescript("""
-                CREATE INDEX IF NOT EXISTS dS_E ON dataS (%s);
+                #CREATE INDEX, MERGE DATA BASED ON EXACTS
+                print "Creating indices... " + str(datetime.datetime.now())
+                exAnd = " AND ".join(["a.%s=b.%s" % (x, x) for x in exact])
+                exCom = ", ".join(exact)
 
-                /* RETAIN ONLY JARO>0.9 FUZZY AND EXACT MATCHES */
-                CREATE TABLE dataM AS
-                    SELECT  a.*, %s AS uqB, %s AS uqS, %s AS jaro
-                      FROM  %s AS a
-                INNER JOIN  dataS AS b
-                        ON  %s
-                     WHERE  jaro>0.90;
+                if fileB.split(".")[-1].lower()=="csv":
+                    dataB = uniVert([x for x in csv.reader(open("%s" % fileB, "rb"))])
+                    quickSQL(c, data=dataB,  table="dataB", header=True, typeList=["Patent VARCHAR"])
+                    c.execute("CREATE INDEX IF NOT EXISTS dB_E ON dataB (%s)" % exCom)
+                    c.execute("CREATE INDEX IF NOT EXISTS dB_U ON dataB (%s)" % uqB)
+                    fBnme = "dataB"
+                else:
+                    c.execute("ATTACH DATABASE '%s' AS db" % fileB)
+                    if tblB=="":
+                        fBnme = "db.%s" % fileB.split(".")[-2].split("/")[-1]
+                    else:
+                        fBnme = "db.%s" % tblB
 
-                /* DETERMINE MAXIMUM JARO FOR EACH UQ AND EXACT COMBO */
-                CREATE TABLE dataT AS
-                    SELECT  uqS, %s, MAX(jaro) AS jaro, count(*) as cnt
-                      FROM  dataM
-                  GROUP BY  uqS, %s;
+                quickSQL(c, data=dataS2, table="dataS", header=True, typeList=tList)
 
-                /* RETAIN ONLY MAXIMUM JARO */
-                CREATE TABLE dataM2 AS
-                    SELECT  a.*
-                      FROM  dataM AS a
-                INNER JOIN  dataT AS b
-                        ON  a.uqS=b.uqS AND a.jaro=b.jaro AND %s;
-                """ % (exCom, uqB, uqS, 
-                       "*".join(["jarow(a.%s, b.%s)" % (x,x) for x in fuzzy]),
-                       fBnme, exAnd, exCom, exCom, exAnd))
-        else:
-            c.executescript("""
-                CREATE INDEX IF NOT EXISTS dS_E ON dataS (%s);
-                CREATE TABLE dataM2 AS
-                    SELECT  *, %s AS uqB, %s AS uqS
-                      FROM  %s AS a
-                INNER JOIN  dataS AS b
-                        ON  %s;
-                """ % (exCom, uqB, uqS, fBnme, exAnd))
+                if fuzzy:
+                    c.execute("CREATE INDEX IF NOT EXISTS dS_E ON dataS (%s);" % (exCom))
+                    c.executescript("""
+                        CREATE INDEX IF NOT EXISTS dS_E ON dataS (%s);
 
-        c.executescript("""
-            /* EXPAND UNIQUE BASE AND INDICATE ACTIVE MATCHES */
-            CREATE TABLE dataM3 AS
-                SELECT  uqS, a.*
-                  FROM (SELECT  uqS AS uqSUB, a.*
-                          FROM (SELECT  uqB, b.*
-                                  FROM  (SELECT DISTINCT(uqB) FROM dataM2 WHERE uqB!="") AS a
-                            INNER JOIN  %s AS b
-                                    ON  a.uqB=b.%s) AS a
-                     LEFT JOIN (SELECT %s, uqB, uqS FROM dataM2) AS b
-                            ON  a.uqB=b.uqB AND %s) AS a
-            INNER JOIN (SELECT DISTINCT uqB, uqS FROM dataM2) AS b
-                    ON  a.%s=b.uqB;
+                        /* RETAIN ONLY JARO>0.9 FUZZY AND EXACT MATCHES */
+                        CREATE TABLE dataM AS
+                            SELECT  a.*, %s AS uqB, %s AS uqS, %s AS jaro
+                              FROM  %s AS a
+                        INNER JOIN  dataS AS b
+                                ON  %s
+                             WHERE  jaro>0.90;
 
-            /* INDICATE INVENTORS WHO DO NOT MATCH */
-            CREATE TABLE dataM4 AS
-                SELECT  errD(a.ErrUQ, uqB) AS ErrUQ, b.*
-                  FROM (SELECT uqS, freqUQ(uqB) as ErrUQ FROM dataM3 GROUP BY uqS) AS a
-            INNER JOIN  dataM3 AS b
-                    ON  a.uqS=b.uqS AND b.AppYearStr <= '2009' /*AND a.uqS not in (83, 85, 93)*/
-              ORDER BY  uqS, %s;
+                        /* DETERMINE MAXIMUM JARO FOR EACH UQ AND EXACT COMBO */
+                        CREATE TABLE dataT AS
+                            SELECT  uqS, %s, MAX(jaro) AS jaro, count(*) as cnt
+                              FROM  dataM
+                          GROUP BY  uqS, %s;
 
-            """ % (fBnme, uqB, exCom, exAnd, uqB, exCom))
+                        /* RETAIN ONLY MAXIMUM JARO */
+                        CREATE TABLE dataM2 AS
+                            SELECT  a.*
+                              FROM  dataM AS a
+                        INNER JOIN  dataT AS b
+                                ON  a.uqS=b.uqS AND a.jaro=b.jaro AND %s;
+                        """ % (exCom, uqB, uqS, 
+                               "*".join(["jarow(a.%s, b.%s)" % (x,x) for x in fuzzy]),
+                               fBnme, exAnd, exCom, exCom, exAnd))
+                else:
+                    c.executescript("""
+                        CREATE INDEX IF NOT EXISTS dS_E ON dataS (%s);
+                        CREATE TABLE dataM2 AS
+                            SELECT  *, %s AS uqB, %s AS uqS
+                              FROM  %s AS a
+                        INNER JOIN  dataS AS b
+                                ON  %s;
+                        """ % (exCom, uqB, uqS, fBnme, exAnd))
 
-        print "Indices Done ... " + str(datetime.datetime.now())
+                c.executescript("""
+                    /* EXPAND UNIQUE BASE AND INDICATE ACTIVE MATCHES */
+                    CREATE TABLE dataM3 AS
+                        SELECT  uqS, a.*
+                          FROM (SELECT  uqS AS uqSUB, a.*
+                                  FROM (SELECT  uqB, b.*
+                                          FROM  (SELECT DISTINCT(uqB) FROM dataM2 WHERE uqB!="") AS a
+                                    INNER JOIN  %s AS b
+                                            ON  a.uqB=b.%s) AS a
+                             LEFT JOIN (SELECT %s, uqB, uqS FROM dataM2) AS b
+                                    ON  a.uqB=b.uqB AND %s) AS a
+                    INNER JOIN (SELECT DISTINCT uqB, uqS FROM dataM2) AS b
+                            ON  a.%s=b.uqB;
 
-        #EXPORT THE RESULTS
-        writer = csv.writer(open(output, "wb"), lineterminator="\n")
-        writer.writerows([[x[1] for x in c.execute("PRAGMA TABLE_INFO(dataM4)")]])
-        writer.writerows(c.execute("SELECT * FROM dataM4").fetchall())
+                    /* INDICATE INVENTORS WHO DO NOT MATCH */
+                    CREATE TABLE dataM4 AS
+                        SELECT  errD(a.ErrUQ, uqB) AS ErrUQ, b.*
+                          FROM (SELECT uqS, freqUQ(uqB) as ErrUQ FROM dataM3 GROUP BY uqS) AS a
+                    INNER JOIN  dataM3 AS b
+                            ON  a.uqS=b.uqS AND b.AppYearStr <= '2009' /*AND a.uqS not in (83, 85, 93)*/
+                      ORDER BY  uqS, %s;
 
-        ##if subR!="":
-        ##    writer = csv.writer(open("%s_sub.%s" % tuple(output.split(".")), "wb"), lineterminator="\n")
-        ##    writer.writerows([[x[1] for x in c.execute("PRAGMA TABLE_INFO(dataM4)")]])
-        ##    writer.writerows(c.execute("SELECT * FROM dataM4 WHERE uqSub IS NOT NULL").fetchall())
-        print "Printing results ..." + str(datetime.datetime.now())
-        rep = [list(x) for x in c.execute("SELECT ErrUQ, uqSUB FROM dataM4")]
-        orig = len([x for x in rep if x[1]!=None])
-        errm = sum([int(x[0]) for x in rep if x[0]!=None])
-        print """
+                    """ % (fBnme, uqB, exCom, exAnd, uqB, exCom))
 
-        RESULTS ==================
+                print "Indices Done ... " + str(datetime.datetime.now())
 
-             Original: %d
-          New Records: %d
-                Total: %d
+                #EXPORT THE RESULTS
+                writer = csv.writer(open(output, "wb"), lineterminator="\n")
+                writer.writerows([[x[1] for x in c.execute("PRAGMA TABLE_INFO(dataM4)")]])
+                writer.writerows(c.execute("SELECT * FROM dataM4").fetchall())
+                print "Printing results ..." + str(datetime.datetime.now())
+                rep = [list(x) for x in c.execute("SELECT ErrUQ, uqSUB FROM dataM4")]
+                orig = len([x for x in rep if x[1]!=None])
+                errm = sum([int(x[0]) for x in rep if x[0]!=None])
+                print """
 
-            Overclump: %d (%.1f%%)
-           Underclump: %d (%.1f%%)
-          File Detail: %s
-                 Time: %s
-        """ % (orig, len(rep)-orig, len(rep), len(rep)-orig, 100*(1-(float(orig)/len(rep))), errm, 1000*errm/orig/10., output, datetime.datetime.now()-t)
-        c.close()
-        conn.close()
+                RESULTS ==================
 
-        ##if __name__=="__main__":
-        ##    try:
-        ##        print sys.argv[1]
-        ##        print sys.argv[2]
-        ##    except:
-        ##        print "Usage: %s <query string>" % sys.argv[0]
-        ##        raise
+                     Original: %d
+                  New Records: %d
+                        Total: %d
+
+                    Overclump: %d (%.1f%%)
+                   Underclump: %d (%.1f%%)
+                  File Detail: %s
+                         Time: %s
+                """ % (orig, len(rep)-orig, len(rep), len(rep)-orig, 100*(1-(float(orig)/len(rep))), errm, 1000*errm/orig/10., output, datetime.datetime.now()-t)
+                c.close()
+                conn.close()
+
+
+if __name__ == "__main__":
+    import sys
+    if(sys.argv[1] == 'help' or sys.argv[1] == '?'):
+        print bmVerify.__doc__
+
+    else:
+            bmVerify(sys.argv[3:], sys.argv[1], sys.argv[2])
