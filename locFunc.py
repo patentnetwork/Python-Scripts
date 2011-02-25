@@ -1,124 +1,40 @@
-import csv, os, re, sqlite3, types, unicodedata, zipfile
-from ftplib import *
+import re, types, unicodedata
 
 def jarow(s1,s2):
-    try:
-        if s1==s2:
-            return 1.0
-        short, long = len(s1)>len(s2) and [s2, s1] or [s1, s2]
-        for l in range(0, min(5, len(short))):
-          if short[l] != long[l]:
-            break
-        mtch = ""
-        mtch2=[]
-        dist = len(long)/2-1
-        m = 0.0
-        for i, x in enumerate(long):
-          jx, jy = (lambda x,y: x==y and (x,y+1) or (x,y))(max(0, i-dist), min(len(short), i+dist))
-          for j in range(jx, jy):
-            if j<len(short) and x == short[j]:
-              m+=1
-              mtch+=x
-              mtch2.extend([[j,x]])
-              short=short[:j]+"*"+short[min(len(short), j+1):]
-              break
-        mtch2 = "".join(x[1] for x in sorted(mtch2))
-        t = 0.0
-        for i in range(0, len(mtch)):      
-          if mtch[i]!=mtch2[i]:
-            t += 0.5
-        
-        d = 0.1 
-        # this is the jaro-distance 
-        if m==0:
-          d_j = 0
-        else:
-          d_j = 1/3.0 * ((m/len(short)) + (m/len(long)) + ((m - t)/m))
-        return d_j + (l * d * (1 - d_j))
-    except:
-        print "Jaro-Winkler exception thrown on comparison between " + s1 + " and " + s2
-        return 0
+    if s1==s2:
+        return 1.0
+    short, long = len(s1)>len(s2) and [s2, s1] or [s1, s2]
 
-class uQvals:
-    def __init__(self):
-        self.dList=[]
-    def step(self, value):
-        self.dList.append(value.upper())
-    def finalize(self):
-        out = list(set(self.dList))
-        return len(out)>1 and "|".join(out) or ""
+    for l in range(0, min(5, len(short))):
+      if short[l] != long[l]:
+        break
 
-def tblExist(c, table):
-    return c.execute("SELECT count(*) FROM sqlite_master WHERE tbl_name='%s'" % table).fetchone()[0]>0
-
-def uniVert(data):
-    def uni(data):
-        try: return unicode(data, "utf-8")
-        except: return unicode("")
-    return [[uni(y) for y in x] for x in data]
-
-def quickSQL(c, data, table="", header=False, typescan=50, typeList = []):
-    if table=="":
-        table = "debug%d" % len([x[0] for x in c.execute("SELECT tbl_name FROM sqlite_master WHERE type='table' order by tbl_name") if len(re.findall(r"debug[0-9]+", x[0]))>0])
-    else:
-        if c.execute("SELECT count(*) FROM sqlite_master WHERE tbl_name='%s'" % table).fetchone()[0]>0:
-            return
-
-    tList = []
-    for i,x in enumerate(data[1]):
-        if str(typeList).upper().find("%s " % data[0][i].upper())<0:
-            cType = {types.StringType:"VARCHAR", types.UnicodeType:"VARCHAR", types.IntType:"INTEGER", types.FloatType: "REAL"}[type(x)]
-            if type(typescan)==types.IntType and cType=="VARCHAR":
-                least = 2
-                ints = 1
-                for j in range(1, min(typescan+1, len(data))):
-                    if type(data[j][i])==types.StringType or type(data[j][i])==types.UnicodeType:
-                        if re.sub(r"[-,.]", "", data[j][i]).isdigit():
-                            if len(re.findall(r"[.]", data[j][i]))==0:   pass
-                            elif len(re.findall(r"[.]", data[j][i]))==1: ints = 0
-                            else: least = 0; break
-                        else: least = 0; break
-                cType = {0:"VARCHAR", 1:"INTEGER", 2:"REAL"}[max(least-ints, 0)]
-            if header:
-                tList.append("%s %s" % (data[0][i], cType))
-            else:
-                tList.append("v%d %s" % (i, cType))
-        else:
-            tList.extend([y for y in typeList if y.upper().find("%s " % data[0][i].upper())==0])
-
-    c.execute("CREATE TABLE IF NOT EXISTS %s (%s)" % (table, ", ".join(tList)))
-    if header==False:
-        c.executemany("INSERT INTO %s VALUES (%s)" % (table, ", ".join(["?"]*len(data[0]))), data)
-    else:
-        c.executemany("INSERT INTO %s VALUES (%s)" % (table, ", ".join(["?"]*len(data[0]))), data[1:])
-
-def tabFile(fname, delim="\t"):
-##    tFile = [x.split("\t") for x in open(fname).read().split("\n")]
-##    return [x for x in tFile if len(x)==len(tFile[0])]
-    tFile = csv.reader(open(fname, "rb"), delimiter=delim, quotechar='"')
-    return [x for x in tFile]
-
-def remspace(x):
-    return re.sub(r" ", "", x)
-
-def ascit(x, strict=True):
-    x = x.upper()
-    #Solves that {UMLAUT OVER (A)}
-    x = re.sub(r"[{].*?[(].*?[)].*?[}]", lambda(x):re.findall("[(](.*?)[)]", x.group())[0], x)
-    #remove space(s) + punctuation
-    x = re.sub(r" *?[,|-] *?", lambda(x):re.findall(r"[,|-]", x.group())[0], x)
-    if strict:
-        #remove stuff in between (), {}
-        x = re.sub(r"[(].*?[)]|[{].*?[}]", "", x)
-        #remove periods, ampersand, etc
-        ##x = re.sub(r"[!@#$%^&*.,(){}]", "", x)
-        x = re.sub(r"[^A-Za-z0-9 ]", "", x)
+    mtch = ""
+    mtch2=[]
+    dist = len(long)/2-1
+    m = 0.0
+    for i, x in enumerate(long):
+      jx, jy = (lambda x,y: x==y and (x,y+1) or (x,y))(max(0, i-dist), min(len(short), i+dist))
+      for j in range(jx, jy):
+        if j<len(short) and x == short[j]:
+          m+=1
+          mtch+=x
+          mtch2.extend([[j,x]])
+          short=short[:j]+"*"+short[min(len(short), j+1):]
+          break
+    mtch2 = "".join(x[1] for x in sorted(mtch2))
+    t = 0.0
+    for i in range(0, len(mtch)):      
+      if mtch[i]!=mtch2[i]:
+        t += 0.5
     
-    #remove duplicates
-    x = re.sub(r"[ ,|-]{2,}", lambda(x):re.findall(r"[ ,|-]", x.group())[0], x)
-    #remove all unicode
-    x = unicodedata.normalize('NFKD', unicode(x)).encode('ascii', 'ignore')
-    return x.strip()
+    d = 0.1 
+    # this is the jaro-distance 
+    if m==0:
+      d_j = 0
+    else:
+      d_j = 1/3.0 * ((m/len(short)) + (m/len(long)) + ((m - t)/m))
+    return d_j + (l * d * (1 - d_j)) 
 
 def uniasc(x):
     if type(x)==types.IntType or type(x)==types.FloatType:
@@ -241,7 +157,7 @@ def cityctry(city, ctry, ret="city"):
         ##JAPAN
         elif ctry=="JP":
             #KEEPS THESE, PSEUDO STEP IT!
-            ##city = re.sub(r"[-]?(KEN|SHI|SI|CITY|GUN|KU|MACHI|CHO|MURA)", "", city)
+##            city = re.sub(r"[-]?(KEN|SHI|SI|CITY|GUN|KU|MACHI|CHO|MURA)", "", city)
             city = re.sub(r"ALL( OR)?|[-]?PREF(ECTURE)?[.]?", "", city)
             prov = ["AICHI", "AKITA", "AOMORI", "CHIBA", "EHIME", "FUKUI", "FUKUOKA", "FUKUSHIMA", "GIFU", "GUMMA", "HIROSHIMA", "HOKKAIDO", "HYOGO", "IBARAKI", "ISHIKAWA", "IWATE", "KAGAWA", "KAGOSHIMA", "KANAGAWA", "KOCHI", "KUMAMOTO", "KYOTO", "MIE", "MIYAGI", "MIYAZAKI", "NAGANO", "NAGASAKI", "NARA", "NIIGATA", "OITA", "OKAYAMA", "OKINAWA", "OSAKA", "SAGA", "SAITAMA", "SHIGA", "SHIMANE", "SHIZUOKA", "TOCHIGI", "TOKUSHIMA", "TOKYO", "TOTTORI", "TOYAMA", "WAKAYAMA", "YAMAGATA", "YAMAGUCHI", "YAMAMASHI", "RUMOI", "SHIRIBESHI", "SORACHI", "SOYA", "TOKACHI", "TSUHIMA"]
         ##KOREA
@@ -345,47 +261,3 @@ def cityctry(city, ctry, ret="city"):
         #remove dash, excess spaces with single space
         city = re.sub(r"([-]|  +)", " ", city)
         return city.strip()
-
-def ftpUpload(filename, password="", zips=True, ftp="people.hbs.edu", login="rolai", direc="protectedWWW", debug=False):
-    ftp = FTP(ftp)
-    if password=="":
-        password = raw_input("passwd:")
-        os.system("clear")
-    ftp.login(login, password)
-    ftp.cwd(direc)
-
-    if zips:
-        if debug:
-            print("  - zipping "+filename)
-        fname = filename.split("/")[-1] + ".zip"
-        zfile = zipfile.ZipFile(fname, "w")
-        zfile.write(filename)
-        zfile.close()
-    else:
-        fname = filename
-        
-    if debug:
-        print("  - uploading "+fname)
-    zfile = open(fname, 'rb')
-    ftp.storbinary('STOR' + ' %s' % fname.split("/")[-1], zfile)
-    ftp.quit()
-    zfile = None
-    if zips:
-        if debug:
-            print("  - removing "+fname)
-        os.remove(fname)
-
-def flatten(l, ltypes=(list, tuple)):
-    ltype = type(l)
-    l = list(l)
-    i = 0
-    while i < len(l):
-        while isinstance(l[i], ltypes):
-            if not l[i]:
-                l.pop(i)
-                i -= 1
-                break
-            else:
-                l[i:i + 1] = l[i]
-        i += 1
-    return ltype(l)

@@ -24,7 +24,7 @@ def bmVerify(results, filepath="", outdir = ""):
                 tblB = "invpat"
                 fileS = "/home/ron/disambig/BM/DefTruth5.csv"
                 fileB = filepath + "{result}.sqlite3".format(result=result)
-                output = outdir + "{result}_DELETE.csv".format(result=result)
+                output = outdir + "{result}_DT5.csv".format(result=result)
 
                 t=datetime.datetime.now()
 
