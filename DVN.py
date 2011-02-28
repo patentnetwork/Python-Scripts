@@ -7,6 +7,7 @@ class DVN():
 
     def __init__(self, *dbnames):
         data = {}
+        graphs = {}
         for dbname in dbnames:
             data[dbname] = SQLite.SQLite(db = dbname + '.sqlite3')
         
@@ -21,21 +22,24 @@ class DVN():
         data['invpat'].chgTbl('invpat')
         for year in range(begin, end, increment):
             print "Creating file for {year}".format(year=year)
-            data['invpat'].igraph(where='AppYearStr BETWEEN %d AND %d and Lastname < "G"' %
-                                  (year, year+2), vx="invnum_N").g.save('pat_%d_low.graphml' % year)
+            graphs[year] = data['invpat'].igraph(where='AppYearStr BETWEEN %d AND %d and Lastname < "G"' %
+                                  (year, year+2), vx="invnum_N").g
 
     def calculate_node_betweenness(self):
-        """calculate betweenness for each node in the network"""
-        pass
+        """calculate betweenness for each node in the network all networks"""
+        for g in graphs:
+            g.vs["degree"] = g.degree()
 
     def calculate_eigenvector_centrality(self):
-        """calculate eigenvector (bonacich) centrality for each node in the network"""
-        pass
+        """calculate eigenvector (bonacich) centrality for each node all networks"""
+        for g in graphs:
+            g.vs["eigenvector_centrality"] = g.eigenvector_centrality()
 
     def calculate_constraint(self):
-        """calculate constraint for each node in the network
+        """calculate constraint for each node in all networks
         """
-        pass
+        for g in graphs:
+            g.vs["constraint"] = g.constraint()
 
     def create_csv_file(self):
         """
