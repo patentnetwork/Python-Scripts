@@ -1,5 +1,16 @@
 import sys, SQLite, igraph, csv
 
+# Option 1: run the script directly from the command line
+# TODO: implement this!
+def DVN_script():
+    """
+    script to create and run DVN object from command line
+    """
+    pass
+
+# Option 2: run interactively in Python
+# create a DVN object, various functions available within to use and reuse
+
 class DVN():
     """
     initialize a DVN object for uploading patent data to the IQSS DVN
@@ -31,7 +42,7 @@ class DVN():
             g.vs["degree"] = g.degree()
 
     def calculate_eigenvector_centrality(self):
-        """calculate eigenvector (bonacich) centrality for each node all networks"""
+        """calculate eigenvector centrality for each node all networks"""
         for g in graphs:
             g.vs["eigenvector_centrality"] = g.eigenvector_centrality()
 
@@ -48,5 +59,12 @@ class DVN():
         step 2: export to csv format
         """
         pass
+
+if __name__ == "__main__":
+    import sys
+    if(sys.argv[1] == 'help' or sys.argv[1] == '?'):
+        print DVN_script.__doc__
+    else:
+        print "run script here"
 
 
