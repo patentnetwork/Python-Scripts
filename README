@@ -28,3 +28,9 @@ From the command line, run bmVerify_v3.py.
 
 Use python bmVerify_v3.py ? or python bmVerify_v3.py help for more information.
 
+(III) Other scripts
+
+Run from command line to create files:
+
+python patentYear.py [year] [src]
+python createFullSet.py [start_year] [end_year] 
