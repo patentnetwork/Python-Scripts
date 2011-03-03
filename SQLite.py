@@ -157,14 +157,18 @@ class SQLite:
 
         Field=True, defaults that field names must match 1-1
         """
-        import types
+        import types, os
         table = self.getTbl(table)
-        if type(data)==types.StringType and not self.tables(db=db, lookup=table):
+        isFile = False
+
+        strBool = (type(data)==types.StringType or type(data)==types.UnicodeType)
+
+        if strBool and os.path.exists(data):
             data = self.csvInput(data)
         if insert!="":
             insert = "OR %s" % insert
 
-        if type(data)==types.StringType and self.tables(db=db, lookup=data):
+        if strBool and self.tables(db=db, lookup=data):
             if self.tables(db=db, lookup=table):
                 self.replicate(tableTo=table, table=data, db=db)
             if field:
@@ -174,9 +178,10 @@ class SQLite:
                 self.c.execute("INSERT %s INTO %s (%s) SELECT %s FROM %s%s" % (insert, table, colList, colList, dbAdd(db), data))
             else:
                 self.c.execute("INSERT %s INTO %s SELECT * FROM %s%s" % (insert, table, dbAdd(db), data))
-                
-        #if table exists ... just add data into it
+
+        #if file exists, use quickSQL..        
         elif self.tables(db=db, lookup=table):
+            #self.quickSQL(data, table=table, header=header)
             self.c.executemany("INSERT %s INTO %s VALUES (%s)" % (insert, table, ", ".join(["?"]*len(data[0]))), data[int(header):])
         else:
             self.quickSQL(data, table=table, header=header)
@@ -474,15 +479,18 @@ class SQLite:
         except:
             y=0
         indexes = [x[0] for x in self.c.execute("SELECT sql FROM sqlite_master WHERE type='index' and tbl_name='%s'" % table)]
+
         for idx in indexes:
-            idx = idx.lower()
-            idx = idx.replace('on %s (' % table.lower(),
-                              'on %s (' % tableTo)
-            try:
-                #print idx
-                mc.execute(idx)
-            except:
-                y=0
+            if idx!=None:
+                idx = idx.lower()
+                idx = idx.replace('on %s (' % table.lower(),
+                                  'on %s (' % tableTo)
+                try:
+                    #print idx
+                    mc.execute(idx)
+                except:
+                    y=0
+
         if full:
             vals = [x for x in self.c.execute("SELECT * FROM %s" % table)]
             for i,val in enumerate(vals):
@@ -503,49 +511,31 @@ class SQLite:
     # IGRAPH / VISUALIZATION RELATED FUNCTIONS, very very preliminary
 
     def igraph(self, where, table=None,
-                 vx="Invnum_N", ed="Patent", order="AppYearStr",
-                 va=", Lastname, Firstname, City, State, Country, Assignee, AsgNum",
-                 ea=", a.AppYearStr AS AppYear", eg=', a.AppYearStr'):
+                 vx="Invnum_N", ed="Patent", order="AppYear",
+                 va=", Lastname||', '||Firstname AS Name, City||'-'||State||'-'||Country AS Loc, Assignee, AsgNum",
+                 ea=", a.AppYear AS AppYear", eg=', a.AppYear'):
         import math, datetime, senGraph
         table = self.getTbl(table)
         tab = senGraph.senTab()
-
         self.c.executescript("""
             DROP TABLE IF EXISTS G0;
             DROP TABLE IF EXISTS vx0;
             DROP TABLE IF EXISTS ed0;
             CREATE TEMP TABLE G0 AS
-                SELECT * FROM {table} WHERE {where} ORDER BY {order};
-            CREATE INDEX G_id ON G0 ({ed});
-            CREATE INDEX G_ed ON G0 ({ed}, {vx});
+                SELECT * FROM %s WHERE %s ORDER BY %s;
+            CREATE INDEX G_id ON G0 (%s);
+            CREATE INDEX G_ed ON G0 (%s, %s);
             CREATE TEMPORARY TABLE vx0 AS
-                SELECT {vx}, count(*) AS Patents {va} FROM G0 GROUP BY {vx};
-            CREATE INDEX vx_id ON vx0 ({vx});
+                SELECT %s, count(*) AS Patents %s FROM G0
+                 GROUP BY %s;
+            CREATE INDEX vx_id ON vx0 (%s);
             CREATE TEMPORARY TABLE ed0 AS
-                SELECT  a.{vx}, b.{vx}, a.{vx} AS hId, b.{vx} AS tId, count(*) AS Weight {ea}
+                SELECT  a.%s, b.%s, a.%s AS hId, b.%s AS tId, count(*) AS Weight %s
                   FROM  G0 AS a INNER JOIN G0 AS b
-                    ON  a.{ed}=b.{ed} AND a.{vx}<b.{vx}
-              GROUP BY  a.{vx}, b.{vx} {eg};
-            """.format(table=table, where=where, order=order, ed=ed, vx=vx, va=va, ea=ea, eg=eg))
-#        self.c.executescript("""
-#            DROP TABLE IF EXISTS G0;
-#            DROP TABLE IF EXISTS vx0;
-#            DROP TABLE IF EXISTS ed0;
-#            CREATE TEMP TABLE G0 AS
-#                SELECT * FROM %s WHERE %s ORDER BY %s;
-#            CREATE INDEX G_id ON G0 (%s);
-#            CREATE INDEX G_ed ON G0 (%s, %s);
-#            CREATE TEMPORARY TABLE vx0 AS
-#                SELECT %s, count(*) AS Patents %s FROM G0
-#                 GROUP BY %s;
-#            CREATE INDEX vx_id ON vx0 (%s);
-#            CREATE TEMPORARY TABLE ed0 AS
-#                SELECT  a.%s, b.%s, a.%s AS hId, b.%s AS tId, count(*) AS Weight %s
-#                  FROM  G0 AS a INNER JOIN G0 AS b
-#                    ON  a.%s=b.%s AND a.%s<b.%s
-#              GROUP BY  a.%s, b.%s %s;
-#            """ % (table, where, order, ed, vx, ed, vx, va, vx, vx,
-#                   vx, vx, vx, vx, ea, ed, ed, vx, vx, vx, vx, eg))
+                    ON  a.%s=b.%s AND a.%s<b.%s
+              GROUP BY  a.%s, b.%s %s;
+            """ % (table, where, order, ed, vx, ed, vx, va, vx, vx,
+                   vx, vx, vx, vx, ea, ed, ed, vx, vx, vx, vx, eg))
 
         tab.vList = self.c.execute("SELECT * FROM vx0").fetchall()
         tab.vlst = self.columns(table="vx0", output=False)[1:]
