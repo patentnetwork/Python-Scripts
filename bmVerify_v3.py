@@ -1,3 +1,9 @@
+# TODO
+# Why are records over & underclumped? ie. Charles Linder 7475467, Nirmala Ramanujam 7570988, Edwin L. Thomas 7799416
+# Investigate "WEIRDNESS" output : Jaro-Winkler exception thrown on comparison between  and ROBERT BRUCE
+# Underclumping: unique records vs. total records
+
+
 import sqlite3, sys, csv, datetime;
 from fwork import *;
 
@@ -155,19 +161,25 @@ def bmVerify(results, filepath="", outdir = ""):
                 rep = [list(x) for x in c.execute("SELECT ErrUQ, uqSUB FROM dataM4")]
                 orig = len([x for x in rep if x[1]!=None])
                 errm = sum([int(x[0]) for x in rep if x[0]!=None])
+                u = 1.0*errm/orig
+                o = 1-(float(orig)/len(rep))
+                recall = 1.0 - u
                 print """
 
                 RESULTS ==================
 
-                     Original: %d
-                  New Records: %d
-                        Total: %d
+                     Original: {original}
+                  New Records: {new}
+                        Total: {total}
 
-                    Overclump: %d (%.1f%%)
-                   Underclump: %d (%.1f%%)
-                  File Detail: %s
-                         Time: %s
-                """ % (orig, len(rep)-orig, len(rep), len(rep)-orig, 100*(1-(float(orig)/len(rep))), errm, 1000*errm/orig/10., output, datetime.datetime.now()-t)
+                    Overclump: {overclump} ({o:.2%})
+                   Underclump: {underclump} ({u:.2%})
+                    Precision: {precision:.2%}
+                       Recall: {recall:.2%}
+                  File Detail: {filename}
+                         Time: {time}
+                """.format(original = orig, new = len(rep)-orig, total = len(rep), overclump = len(rep)-orig, o = o,
+                           underclump = errm, u = u, recall = recall, precision = recall/(recall+o), filename = output, time = datetime.datetime.now()-t)
                 c.close()
                 conn.close()
 
