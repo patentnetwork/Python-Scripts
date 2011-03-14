@@ -28,8 +28,10 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     print filepath
     print dbnames
     D = DVN(filepath, dbnames)
+    D.summary()
     D.create_graphs()
-    D.create_graphml_file(filepath, '2000')
+    D.summary()
+    #D.create_graphml_file(filepath, '2000')
     print "DONE"
     
 
@@ -48,7 +50,7 @@ class DVN():
             self.data[dbname] = SQLite.SQLite(filepath + dbname + '.sqlite3', dbname)
         
 
-    def create_graphs(self, begin = 2000, end = 2003, increment = 3):
+    def create_graphs(self, begin = 2000, end = 2006, increment = 3):
         """
         create graphML files from the inventor-patent dataset
         for upload to DVN interface (by application year)
@@ -56,7 +58,7 @@ class DVN():
         inherits the igraph function from the patent team SQLite library
         """
         for year in range(begin, end, increment):
-            print "Creating file for {year}".format(year=year)
+            print "Creating graph for {year}".format(year=year)
             self.graphs[year] = self.data['invpat'].igraph(where='AppYearStr BETWEEN %d AND %d and Lastname < "G"' %
                                   (year, year+2), vx="invnum_N").g
 
@@ -112,7 +114,26 @@ class DVN():
         else:
             for k,v in self.graphs.iteritems():
                 v.save((filepath +"pat_{year}.graphml").format(year=k))
-    
+
+    def summary(self):
+        """print a summary of the DVN object, also prints summary network statistics per graph 
+        """
+        dnames = [k for k in self.data.iterkeys()]
+        gnames = [k for k in self.graphs.iterkeys()]
+        
+        print "=========================SUMMARY========================="
+        print """
+                    Databases used : {dnames}
+        Network graphs (by appyear): {gnames}
+        """.format(dnames=dnames, gnames=gnames)
+        if len(self.graphs) > 0:
+            print "=========================GRAPHS=========================="
+            for k,v in self.graphs.iteritems():
+                print "Graph: {gname}".format(gname=str(k))
+                igraph.summary(v)
+                print "---------------------------------------------------------"
+
+
     def create_csv_file(self):
         """
         create csv data file for upload to DVN interface
