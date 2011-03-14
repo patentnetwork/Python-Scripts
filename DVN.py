@@ -10,7 +10,7 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     python DVN.py <directory> <database names - variable length, separate by spaces>
 
     Example:
-    python DVN.py /home/ayu/DVN invpat
+    python DVN.py /home/ayu/DVN/ invpat
     
     (1) Create network data files based on invpat for upload to DVN (graphml format)
     (2) Create csv files for data and pre-calculated network measures
@@ -45,7 +45,6 @@ class DVN():
         self.data = {}
         self.graphs = {}
         for dbname in dbnames:
-            print dbname
             self.data[dbname] = SQLite.SQLite(filepath + dbname + '.sqlite3', dbname)
         
 

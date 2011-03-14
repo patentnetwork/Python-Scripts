@@ -511,9 +511,9 @@ class SQLite:
     # IGRAPH / VISUALIZATION RELATED FUNCTIONS, very very preliminary
 
     def igraph(self, where, table=None,
-                 vx="Invnum_N", ed="Patent", order="AppYear",
+                 vx="Invnum_N", ed="Patent", order="AppYearStr",
                  va=", Lastname||', '||Firstname AS Name, City||'-'||State||'-'||Country AS Loc, Assignee, AsgNum",
-                 ea=", a.AppYear AS AppYear", eg=', a.AppYear'):
+                 ea=", a.AppYearStr AS AppYear", eg=', a.AppYearStr'):
         import math, datetime, senGraph
         table = self.getTbl(table)
         tab = senGraph.senTab()
