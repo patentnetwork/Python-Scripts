@@ -108,7 +108,7 @@ class SQLite:
         if lookup==None:
             return retList
         else:
-            return lookup.lower() in retList
+            return lookup in retList
     def indexes(self, lookup=None, db=None, search=None):
         """
         Returns a list of index names that exist within the database
