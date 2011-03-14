@@ -50,7 +50,7 @@ class DVN():
             self.data[dbname] = SQLite.SQLite(filepath + dbname + '.sqlite3', dbname)
         
 
-    def create_graphs(self, begin = 2000, end = 2006, increment = 3):
+    def create_graphs(self, begin = 2000, end = 2009, increment = 3):
         """
         create graphML files from the inventor-patent dataset
         for upload to DVN interface (by application year)
@@ -100,6 +100,11 @@ class DVN():
         for g in self.graphs.itervalues():
             g.es['betweenness'] = g.edge_betweenness()
 
+    def calculate_component(self):
+        """within each graph, calculate the component that each node belongs to
+        """
+        pass
+
     def get_graph(self, year):
         """returns the igraph object for the given year
         """
@@ -131,6 +136,8 @@ class DVN():
             for k,v in self.graphs.iteritems():
                 print "Graph: {gname}".format(gname=str(k))
                 igraph.summary(v)
+                print "Node attributes: {v}".format(v=v.vertex_attributes())
+                print "Edge attributes: {e}".format(e=v.edge_attributes())
                 print "---------------------------------------------------------"
 
 

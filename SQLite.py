@@ -512,7 +512,7 @@ class SQLite:
 
     def igraph(self, where, table=None,
                  vx="Invnum_N", ed="Patent", order="AppYearStr",
-                 va=", Lastname||', '||Firstname AS Name, City||'-'||State||'-'||Country AS Loc, Assignee, AsgNum",
+                 va=", Lastname, Firstname, City, State, Country, Assignee, AsgNum",
                  ea=", a.AppYearStr AS AppYear", eg=', a.AppYearStr'):
         import math, datetime, senGraph
         table = self.getTbl(table)
