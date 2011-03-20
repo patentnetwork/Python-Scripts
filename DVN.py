@@ -1,5 +1,9 @@
 import sys, SQLite, igraph, csv, senGraph
 
+# TODO:
+# Calculate component ranking and assign a component identifier
+# Calculate eigenvector centrality within components
+
 # Option 1: run the script directly from the command line
 # TODO: implement this!
 def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
@@ -30,6 +34,20 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     D = DVN(filepath, dbnames)
     D.summary()
     D.create_graphs()
+    print "calculating node betweenness.."
+    D.calculate_node_betweenness()
+    print "calculating constraint..."
+    D.calculate_constraint()
+    print "calculating transitivity..."
+    D.calculate_clustering_coefficient()
+    print "calculating degree..."
+    D.calculate_degree()
+    #print "calculating pagerank..."
+    #D.calculate_PageRank()
+    print "calculating edge betweenness..."
+    D.calculate_edge_betweenness()
+    print "calculating component ranking..."
+    D.calculate_component()
     D.summary()
     #D.create_graphml_file(filepath, '2000')
     print "DONE"
@@ -70,6 +88,7 @@ class DVN():
     def calculate_eigenvector_centrality(self):
         """calculate eigenvector centrality for each node all networks"""
         # this may cause issues - getting segmentation fault previously
+        # calculate eigenvector centrality within each component?
         for g in self.graphs.itervalues():
             g.vs['eigenvector_centrality'] = g.eigenvector_centrality()
 
@@ -103,7 +122,13 @@ class DVN():
     def calculate_component(self):
         """within each graph, calculate the component that each node belongs to
         """
-        pass
+        for g in self.graphs.itervalues():
+            mem = g.clusters().membership
+            com = [[mem.count(x),x] for x in range(0,max(mem)+1)]
+            com.sort(reverse=True)
+            com = [[x[1], i] for i,x in enumerate(com)]
+            com.sort()
+            g.vs['component']=[com[x][1] for x in mem]
 
     def get_graph(self, year):
         """returns the igraph object for the given year
