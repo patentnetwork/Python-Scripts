@@ -3,6 +3,7 @@ import sys, SQLite, igraph, csv, senGraph
 # TODO:
 # Calculate component ranking and assign a component identifier
 # Calculate eigenvector centrality within components
+# Add function to get vertices of the component number
 
 # Option 1: run the script directly from the command line
 # TODO: implement this!
@@ -20,10 +21,9 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     (2) Create csv files for data and pre-calculated network measures
         network measures calculated:
             node measures:
-                - centrality (degree, betweenness, eigenvector)
+                - centrality (degree, betweenness)
                 - clustering coefficient
                 - constraint
-                - pagerank
                 - component number
             edge measures:
                 - betweenness
@@ -62,6 +62,9 @@ class DVN():
     """
 
     def __init__(self, filepath, dbnames):
+        """
+        takes a filepath string and a list of dbnames
+        """
         self.data = {}
         self.graphs = {}
         for dbname in dbnames:
@@ -85,12 +88,17 @@ class DVN():
         for g in self.graphs.itervalues():
             g.vs['betweenness'] = g.betweenness()
 
-    def calculate_eigenvector_centrality(self):
+    def calculate_eigenvector_centrality(self, year='', component=''):
         """calculate eigenvector centrality for each node all networks"""
-        # this may cause issues - getting segmentation fault previously
         # calculate eigenvector centrality within each component?
-        for g in self.graphs.itervalues():
-            g.vs['eigenvector_centrality'] = g.eigenvector_centrality()
+        if(year):
+            return self.graphs[year].subgraph(self.graphs[year].
+                                              select(component_eq=component)).eigenvector_centrality()
+        else:
+            pass
+            #this may cause issues - getting segmentation fault previously 
+            #for g in self.graphs.itervalues():
+            #    g.vs['eigenvector_centrality'] = g.eigenvector_centrality()
 
     def calculate_constraint(self):
         """calculate constraint for each node in all networks
@@ -135,6 +143,15 @@ class DVN():
         """
         return self.graphs[year]
 
+    def get_size(self, year=2000, component=''):
+        """returns the number of vertices in the given component for the given year
+           if no component given, by default returns the number of vertices in the whole graph by year
+        """
+        if(component):
+            return len(self.graphs[year].vs.select(component_eq=component))
+        else:
+            return len(self.graphs[year].vs)
+        
     def create_graphml_file(self, filepath = '', year=''):
         """if year is specified, create graphml file for that specific year
         else create graphml for all years in current directory
