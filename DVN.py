@@ -90,15 +90,13 @@ class DVN():
 
     def calculate_eigenvector_centrality(self, year='', component=''):
         """calculate eigenvector centrality for each node all networks"""
-        # calculate eigenvector centrality within each component?
+        # calculate eigenvector centrality within each component
         if(year):
-            return self.graphs[year].subgraph(self.graphs[year].
+            return self.graphs[year].subgraph(self.graphs[year].vs.
                                               select(component_eq=component)).eigenvector_centrality()
         else:
-            pass
-            #this may cause issues - getting segmentation fault previously 
-            #for g in self.graphs.itervalues():
-            #    g.vs['eigenvector_centrality'] = g.eigenvector_centrality()
+            for g in self.graphs.itervalues():
+                g.vs['eigenvector_centrality'] = g.eigenvector_centrality()
 
     def calculate_constraint(self):
         """calculate constraint for each node in all networks
@@ -116,10 +114,13 @@ class DVN():
         for g in self.graphs.itervalues():
             g.vs['degree'] = g.degree()
 
-    def calculate_PageRank(self):
+    def calculate_PageRank(self, year='', component=''):
         """calculate pagerank for each node in all networks"""
-        for g in self.graphs.itervalues():
-            g.vs['PageRank'] = g.pagerank()
+        if(year):
+            return self.graphs[year].subgraph(self.graphs[year].vs.select(component_eq=component)).pagerank()
+        else:
+            for g in self.graphs.itervalues():
+                g.vs['PageRank'] = g.pagerank()
 
     def calculate_edge_betweenness(self):
         """calculate edge betweennness for all edges
