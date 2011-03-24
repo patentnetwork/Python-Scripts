@@ -139,6 +139,36 @@ class DVN():
             com.sort()
             g.vs['component']=[com[x][1] for x in mem]
 
+    def calculate_subclasses(self):
+        """calculate the number of subclasses per patent
+        SQL:
+        select patent, count(subclass) as num_subclasses from class group by patent
+        """
+        self.data['invpat'].add('num_subclasses', 'INT')
+        self.data['class'].c.execute("select count(subclass), patent from class group by patent")
+        self.data['invpat'].c.executemany("UPDATE invpat SET num_subclasses=? WHERE patent=?", self.data['class'].c.fetchall())
+
+    def calculate_citations(self):
+        """calculate the number of forward and backward citations per patent
+        SQL:
+        select patent, count(patent) as backward_cites from citation group by patent
+        select patent, count(citation) as forward_cites from citation group by patent
+        """
+        self.data['invpat'].add('backward_cites', 'INT')
+        self.data['invpat'].add('forward_cites', 'INT')
+        self.data['citation'].c.execute("select count(patent), patent from citation group by patent")
+        self.data['invpat'].c.executemany("UPDATE invpat SET backward_cites=? WHERE patent=?", self.data['citation'].c.fetchall())
+        self.data['citation'].c.execute("select count(citation), patent from citation group by patent")
+        self.data['invpat'].c.executemany("UPDATE invpat SET forward_cites=? WHERE patent=?", self.data['citation'].c.fetchall())
+
+    def calculate_inventor_count(self):
+        """calculate total number of inventors per patent and add data to totalInventors column
+        """
+        self.data['invpat'].add('totalInventors', 'INT')
+        self.data['invpat'].c.execute("select count(distinct invnum_N), patent from invpat group by patent")
+        self.data['invpat'].c.executemany("UPDATE invpat SET totalInventors=? WHERE patent=?", self.data['invpat'].c.fetchall())
+        
+
     def get_graph(self, year):
         """returns the igraph object for the given year
         """
