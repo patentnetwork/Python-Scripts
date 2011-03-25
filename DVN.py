@@ -80,7 +80,7 @@ class DVN():
         """
         for year in range(begin, end, increment):
             print "Creating graph for {year}".format(year=year)
-            self.graphs[year] = self.data['invpat'].igraph(where='AppYearStr BETWEEN %d AND %d and Lastname < "G"' %
+            self.graphs[year] = self.data['invpat'].igraph(where='AppYearStr BETWEEN %d AND %d' %
                                   (year, year+2), vx="invnum_N").g
 
     def calculate_node_betweenness(self):
@@ -214,13 +214,26 @@ class DVN():
                 print "---------------------------------------------------------"
 
 
-    def create_csv_file(self):
+    def create_csv_file(self, begin=2000, end = 2006, increment=3):
         """
         create csv data file for upload to DVN interface
-        step 1: create database table with all relevant entries
+        step 1: slice invpat table into 3 year files
         step 2: export to csv format
         """
-        pass
+        import unicodedata
+        def asc(val):
+            return [unicodedata.normalize('NFKD', unicode(x)).encode('ascii', 'ignore') for x in val]
+        
+        for year in range(begin, end, increment):
+            fname = "invpat{year}.csv".format(year=year)
+            print "Creating {f}".format(f=fname)
+            f = open(fname, "wb")
+            writer = csv.writer(f, lineterminator="\n")
+            writer.writerows([self.columns(table, output=False)])
+            writer.writerows([asc(x) for x in self.data['invpat'].c.execute("select * from invpat where appyearstr between %d AND %d %",
+                                                                            (year, year+2)).fetchall()])
+            writer = None
+            f.close()
 
 if __name__ == "__main__":
     import sys
