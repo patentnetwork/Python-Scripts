@@ -48,7 +48,17 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     D.calculate_edge_betweenness()
     print "calculating component ranking..."
     D.calculate_component()
+    print "calculating subclasses..."
+    D.calculate_subclasses()
+    print "calculating citation counts..."
+    D.calculate_citations()
+    print "calculating total inventors per patent..."
+    D.calculate_inventor_count()
     D.summary()
+    print "creating graphml network files..."
+    D.create_graphml_file()
+    print "creating csv files for 2000-2006"
+    D.create_csv_file()
     #D.create_graphml_file(filepath, '2000')
     print "DONE"
     
@@ -184,15 +194,15 @@ class DVN():
         else:
             return len(self.graphs[year].vs)
         
-    def create_graphml_file(self, filepath = '', year=''):
+    def create_graphml_file(self, year=''):
         """if year is specified, create graphml file for that specific year
         else create graphml for all years in current directory
         """
         if self.graphs.get(year):
-            self.graphs[year].save((filepath + "pat_{year}.graphml").format(year=year))
+            self.graphs[year].save((self.filepath + "pat_{year}.graphml").format(year=year))
         else:
             for k,v in self.graphs.iteritems():
-                v.save((filepath +"pat_{year}.graphml").format(year=k))
+                v.save((self.filepath +"pat_{year}.graphml").format(year=k))
 
     def summary(self):
         """print a summary of the DVN object, also prints summary network statistics per graph 
