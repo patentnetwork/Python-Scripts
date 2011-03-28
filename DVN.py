@@ -65,6 +65,7 @@ class DVN():
         """
         takes a filepath string and a list of dbnames
         """
+        self.filepath = filepath
         self.data = {}
         self.graphs = {}
         for dbname in dbnames:
@@ -225,7 +226,7 @@ class DVN():
             return [unicodedata.normalize('NFKD', unicode(x)).encode('ascii', 'ignore') for x in val]
         
         for year in range(begin, end, increment):
-            fname = "invpat{year}.csv".format(year=year)
+            fname = self.filepath + "invpat{year}.csv".format(year=year)
             print "Creating {f}".format(f=fname)
             f = open(fname, "wb")
             writer = csv.writer(f, lineterminator="\n")
