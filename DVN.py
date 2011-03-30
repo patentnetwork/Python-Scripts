@@ -1,4 +1,4 @@
-import sys, SQLite, igraph, csv, senGraph
+import sys, SQLite, igraph, csv, senGraph, datetime
 
 # TODO:
 # Calculate component ranking and assign a component identifier
@@ -7,6 +7,14 @@ import sys, SQLite, igraph, csv, senGraph
 
 # Option 1: run the script directly from the command line
 # TODO: implement this!
+
+def time_printer(program_start = 0, calc_start = 0):
+    now = datetime.datetime.now()
+    if(program_start):
+        print "Time elapsed: ", now - program_start
+    if(calc_start):
+        print "Calculation time: ", now - calc_start
+
 def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     """
     script to create and run DVN object from command line
@@ -29,38 +37,59 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
                 - betweenness
     
     """
+    t1 = datetime.datetime.now()
+    print "Start", t1   
     print filepath
     print dbnames
     D = DVN(filepath, dbnames)
     D.summary()
     D.create_graphs()
-    print "calculating node betweenness.."
-    D.calculate_node_betweenness()
+##    print "calculating node betweenness.."
+##    D.calculate_node_betweenness()
+    time_printer(t1)
+    t2 = datetime.datetime.now()
     print "calculating constraint..."
     D.calculate_constraint()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "calculating transitivity..."
     D.calculate_clustering_coefficient()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "calculating degree..."
     D.calculate_degree()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     #print "calculating pagerank..."
     #D.calculate_PageRank()
-    print "calculating edge betweenness..."
-    D.calculate_edge_betweenness()
+##    print "calculating edge betweenness..."
+##    D.calculate_edge_betweenness()
     print "calculating component ranking..."
     D.calculate_component()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "calculating subclasses..."
     D.calculate_subclasses()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "calculating citation counts..."
     D.calculate_citations()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "calculating total inventors per patent..."
     D.calculate_inventor_count()
+    time_printer(t1, t2)
     D.summary()
+    t2 = datetime.datetime.now()
     print "creating graphml network files..."
     D.create_graphml_file()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "creating csv files for 2000-2006"
     D.create_csv_file()
-    #D.create_graphml_file(filepath, '2000')
+    time_printer(t1, t2)
     print "DONE"
+    time_printer(t1)
     
 
 # Option 2: run interactively in Python
@@ -143,12 +172,14 @@ class DVN():
         """within each graph, calculate the component that each node belongs to
         """
         for g in self.graphs.itervalues():
+            print g
             mem = g.clusters().membership
             com = [[mem.count(x),x] for x in range(0,max(mem)+1)]
             com.sort(reverse=True)
             com = [[x[1], i] for i,x in enumerate(com)]
             com.sort()
             g.vs['component']=[com[x][1] for x in mem]
+            print g.vs['component']
 
     def calculate_subclasses(self):
         """calculate the number of subclasses per patent
@@ -230,6 +261,7 @@ class DVN():
         create csv data file for upload to DVN interface
         step 1: slice invpat table into 3 year files
         step 2: export to csv format
+        TODO: insert network data from graphs here
         """
         import unicodedata
         def asc(val):
