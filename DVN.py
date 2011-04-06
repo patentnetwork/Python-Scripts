@@ -64,8 +64,12 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     #D.calculate_PageRank()
 ##    print "calculating edge betweenness..."
 ##    D.calculate_edge_betweenness()
-    print "calculating component ranking..."
-    D.calculate_component()
+##    print "calculating component ranking..."
+##    D.calculate_component()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+    print "calculating eigenvector centrality"
+    D.calculate_eigenvector_centrality()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
     print "calculating subclasses..."
@@ -79,7 +83,6 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     print "calculating total inventors per patent..."
     D.calculate_inventor_count()
     time_printer(t1, t2)
-    D.summary()
     t2 = datetime.datetime.now()
     print "creating graphml network files..."
     D.create_graphml_file()
@@ -111,7 +114,7 @@ class DVN():
             self.data[dbname] = SQLite.SQLite(filepath + dbname + '.sqlite3', dbname)
         
 
-    def create_graphs(self, begin = 2000, end = 2009, increment = 3):
+    def create_graphs(self, begin = 2000, end = 2006, increment = 3):
         """
         create graphML files from the inventor-patent dataset
         for upload to DVN interface (by application year)
@@ -259,21 +262,25 @@ class DVN():
     def create_csv_file(self, begin=2000, end = 2006, increment=3):
         """
         create csv data file for upload to DVN interface
+        step 0: drop unused columns - perhaps Ed can do this in disambiguation post-processing
         step 1: slice invpat table into 3 year files
         step 2: export to csv format
         TODO: insert network data from graphs here
+        need to create temporary table for each three year span, 
         """
         import unicodedata
         def asc(val):
             return [unicodedata.normalize('NFKD', unicode(x)).encode('ascii', 'ignore') for x in val]
+
+        self.data['invpat'].drop(['block1', 'block2', 'block3'])
         
         for year in range(begin, end, increment):
             fname = self.filepath + "invpat{year}.csv".format(year=year)
             print "Creating {f}".format(f=fname)
             f = open(fname, "wb")
             writer = csv.writer(f, lineterminator="\n")
-            writer.writerows([self.columns(table, output=False)])
-            writer.writerows([asc(x) for x in self.data['invpat'].c.execute("select * from invpat where appyearstr between %d AND %d %",
+            writer.writerows([self.data['invpat'].columns(self.data['invpat'].tbl, output=False)])
+            writer.writerows([asc(x) for x in self.data['invpat'].c.execute("select * from invpat where appyearstr between %d AND %d" %
                                                                             (year, year+2)).fetchall()])
             writer = None
             f.close()
