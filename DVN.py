@@ -42,10 +42,10 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     print filepath
     print dbnames
     D = DVN(filepath, dbnames)
-    D.summary()
     D.create_graphs()
 ##    print "calculating node betweenness.."
 ##    D.calculate_node_betweenness()
+    D.summary()
     time_printer(t1)
     t2 = datetime.datetime.now()
     print "calculating constraint..."
@@ -80,7 +80,7 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     D.calculate_inventor_count()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
-    print "creating graphml network files..."
+    print "creating graphml network files for 2000-2006"
     D.create_graphml_file()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
@@ -265,6 +265,11 @@ class DVN():
         import unicodedata
         def asc(val):
             return [unicodedata.normalize('NFKD', unicode(x)).encode('ascii', 'ignore') for x in val]
+
+        #create a temporary table in memory to hold all data for each three year period, plus the network measures
+##        conn = sqlite3.connect(":memory:")
+##        c = conn.cursor()
+##        self.graph[year]
         
         for year in range(begin, end, increment):
             fname = self.filepath + "invpat{year}.csv".format(year=year)

@@ -4,7 +4,7 @@ sys.path.append("/home/ron/PythonBase")
 import SQLite
 
 #file = "/media/data/edward/backup/v2/final_r7.sqlite3"
-file = "/home/ysun/disambig/newcode/invpatC.upper.Jan2011.sqlite3"
+file = "/home/ysun/disambig/newcode/all/invpatC.upper.Jan2011.sqlite3"
 
 s = SQLite.SQLite(file, 'invpat')
 
@@ -16,5 +16,5 @@ for x in range(1975, 2010, 3):
 #   s.igraph(where='AppYearStr BETWEEN %d AND %d' % (x, x), vx="new_invnum_N").g.save('pat_%d_upr.graphml' % x)
 
 # Entire US graph for all history
-#s.igraph(where='Country="US"', vx="invnum_N").g.save('pat_US_low.graphml')
+s.igraph(where='Country="US"', vx="invnum_N").g.save('pat_US_upr.graphml') #changed low to upr
 #s.igraph(where='Country="US"', vx="new_invnum_N").g.save('pat_US_upr.graphml')
