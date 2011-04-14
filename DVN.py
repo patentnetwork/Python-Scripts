@@ -45,7 +45,7 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     D.create_graphs()
 ##    print "calculating node betweenness.."
 ##    D.calculate_node_betweenness()
-    D.summary()
+##    D.summary()
     time_printer(t1)
     t2 = datetime.datetime.now()
     print "calculating constraint..."
@@ -188,6 +188,7 @@ class DVN():
         self.data['invpat'].add('num_subclasses', 'INT')
         self.data['class'].c.execute("select count(subclass), patent from class group by patent")
         self.data['invpat'].c.executemany("UPDATE invpat SET num_subclasses=? WHERE patent=?", self.data['class'].c.fetchall())
+        self.data['invpat'].c.commit()
 
     def calculate_citations(self):
         """calculate the number of forward and backward citations per patent
@@ -197,10 +198,12 @@ class DVN():
         """
         self.data['invpat'].add('backward_cites', 'INT')
         self.data['invpat'].add('forward_cites', 'INT')
-        self.data['citation'].c.execute("select count(patent), patent from citation group by patent")
+        self.data['citation'].c.execute("select count(patent), citation from citation group by citation")
         self.data['invpat'].c.executemany("UPDATE invpat SET backward_cites=? WHERE patent=?", self.data['citation'].c.fetchall())
+        self.data['invpat'].c.commit()
         self.data['citation'].c.execute("select count(citation), patent from citation group by patent")
         self.data['invpat'].c.executemany("UPDATE invpat SET forward_cites=? WHERE patent=?", self.data['citation'].c.fetchall())
+        self.data['invpat'].c.commit()
 
     def calculate_inventor_count(self):
         """calculate total number of inventors per patent and add data to totalInventors column
@@ -265,11 +268,49 @@ class DVN():
         import unicodedata
         def asc(val):
             return [unicodedata.normalize('NFKD', unicode(x)).encode('ascii', 'ignore') for x in val]
-
-        #create a temporary table in memory to hold all data for each three year period, plus the network measures
+##
+##        #create a temporary table in memory to hold all data for each three year period, plus the network measures
 ##        conn = sqlite3.connect(":memory:")
 ##        c = conn.cursor()
-##        self.graph[year]
+##        c.execute("""CREATE TABLE invpat(
+##                  Firstname TEXT,
+##                  Lastname TEXT,
+##                  Street TEXT,
+##                  City TEXT,
+##                  State TEXT,
+##                  Country TEXT,
+##                  Zipcode TEXT,
+##                  Lat REAL,
+##                  Lon REAL,
+##                  InvSeq INT,
+##                  Patent TEXT,
+##                  GYear INT,
+##                  AppYearStr TEXT,
+##                  AppDateStr TEXT,
+##                  Assignee TEXT,
+##                  AsgNum INT,
+##                  Class TEXT,
+##                  Invnum,
+##                  Invnum_N TEXT,
+##                  coauths,
+##                  num_coauths,
+##                  num_subclasses INT,
+##                  backward_cites INT,
+##                  forward_cites INT
+##                  totalInventors INT,
+##                  betweenness REAL,
+##                  eigenvector_centrality REAL,
+##                  constraint REAL,
+##                  degree INT)""")
+##        c.execute("CREATE INDEX idx_invnumN on invpat(invnum_N)")
+##        c.execute("CREATE INDEX inx_patent on invpat(patent)")
+##        snippet = self.data['invpat'].c.execute("select * from invpat where appyearstr between %d AND %d" % (year, year+2)).fetchall()
+##        patents = c.execute("SELECT DISTINCT Invnum_N FROM invpat").fetchall()
+##        for p in patents:
+##            c.execute("UPDATE invpat SET degree = ? WHERE Invnum_N = ?"
+##        c.close()
+##        conn.close()
+##        #self.graph[year].vs(inventor_id_eq = 
         
         for year in range(begin, end, increment):
             fname = self.filepath + "invpat{year}.csv".format(year=year)
@@ -277,10 +318,14 @@ class DVN():
             f = open(fname, "wb")
             writer = csv.writer(f, lineterminator="\n")
             writer.writerows([self.data['invpat'].columns(self.data['invpat'].tbl, output=False)])
-            writer.writerows([asc(x) for x in self.data['invpat'].c.execute("select * from invpat where appyearstr between %d AND %d %",
+            writer.writerows([asc(x) for x in self.data['invpat'].c.execute("select * from invpat where appyearstr between %d AND %d" %
                                                                             (year, year+2)).fetchall()])
             writer = None
             f.close()
+
+        # close all sqlite objects
+        for d in self.data.itervalues():
+            d.close()
 
 if __name__ == "__main__":
     import sys
