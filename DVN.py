@@ -43,9 +43,8 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     print dbnames
     D = DVN(filepath, dbnames)
     D.create_graphs()
-##    print "calculating node betweenness.."
-##    D.calculate_node_betweenness()
-    D.summary()
+    print "calculating node betweenness.."
+    D.calculate_node_betweenness()
     time_printer(t1)
     t2 = datetime.datetime.now()
 ##    print "calculating constraint..."
@@ -80,11 +79,12 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
 ##    D.calculate_inventor_count()
 ##    time_printer(t1, t2)
 ##    t2 = datetime.datetime.now()
+    D.summary()
 ##    print "creating graphml network files for 2000-2003"
 ##    D.create_graphml_file()
 ##    time_printer(t1, t2)
 ##    t2 = datetime.datetime.now()
-    print "creating csv files for 2000-2003"
+    print "creating csv files for 2000-2006"
     D.create_csv_file()
     time_printer(t1, t2)
     print "DONE"
@@ -110,7 +110,7 @@ class DVN():
             self.data[dbname] = SQLite.SQLite(filepath + dbname + '.sqlite3', dbname)
         
 
-    def create_graphs(self, begin = 2000, end = 2003, increment = 3):
+    def create_graphs(self, begin = 2000, end = 2006, increment = 3):
         """
         create graphML files from the inventor-patent dataset
         for upload to DVN interface (by application year)
@@ -265,7 +265,7 @@ class DVN():
         for d in self.data.itervalues():
             d.close()
 
-    def create_csv_file(self, begin=2000, end = 2003, increment=3):
+    def create_csv_file(self, begin=2000, end = 2006, increment=3):
         """
         create csv data file for upload to DVN interface
         step 1: slice invpat table into 3 year files
@@ -279,7 +279,6 @@ class DVN():
         for year in range(begin, end, increment):
             #create a temporary table in memory to hold all data for each three year period
             conn = sqlite3.connect(":memory:")
-            #c = conn.cursor()
             conn.executescript("""
             CREATE TABLE invpat_temp(
                 Firstname TEXT,
@@ -319,15 +318,9 @@ class DVN():
             # plus the network measures
             n = []
             for i in self.graphs[year].vs:
-                n.append((i.attributes()['degree'], i.attributes()['inventor_id']))
-            conn.executemany("UPDATE invpat_temp SET degree = ? WHERE Invnum_N = ?", n)
+                n.append((i['degree'], i['betweenness'], i['inventor_id']))
+            conn.executemany("UPDATE invpat_temp SET degree = ?, betweenness = ? WHERE Invnum_N = ?", n)
             conn.commit()
-
-
-##            inventors = conn.execute("SELECT DISTINCT Invnum_N FROM invpat_temp").fetchall()
-##            for i in inventors:
-##                print i[0], self.graphs[year].vs(inventor_id_eq = i[0])['degree'][0]
-##                conn.execute("UPDATE invpat_temp SET degree = ? WHERE Invnum_N = ?", (self.graphs[year].vs(inventor_id_eq = i[0])['degree'][0], i[0]))
             
             # write the temp table to the file
             fname = self.filepath + "invpat{year}.csv".format(year=year)
@@ -335,13 +328,12 @@ class DVN():
             f = open(fname, "wb")
             writer = csv.writer(f, lineterminator="\n")
             writer.writerows([[x[1] for x in conn.execute("PRAGMA table_info(invpat_temp)").fetchall()]])
-            writer.writerows([asc(x) for x in conn.execute("select * from invpat_temp where appyearstr between %d AND %d" %
-                                                                            (year, year+2)).fetchall()])
+            writer.writerows([asc(x) for x in conn.execute("select * from invpat_temp").fetchall()])
             writer = None
             f.close()
             conn.close()
 
-            self.close_data()
+        self.close_data()
 
         
 
