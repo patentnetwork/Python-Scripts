@@ -1,4 +1,4 @@
-import sys, SQLite, igraph, csv, senGraph, datetime
+import sqlite3, sys, SQLite, igraph, csv, senGraph, datetime
 
 # TODO:
 # Calculate component ranking and assign a component identifier
@@ -15,7 +15,7 @@ def time_printer(program_start = 0, calc_start = 0):
     if(calc_start):
         print "Calculation time: ", now - calc_start
 
-def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
+def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     """
     script to create and run DVN object from command line
 
@@ -48,14 +48,14 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
     D.summary()
     time_printer(t1)
     t2 = datetime.datetime.now()
-    print "calculating constraint..."
-    D.calculate_constraint()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "calculating transitivity..."
-    D.calculate_clustering_coefficient()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
+##    print "calculating constraint..."
+##    D.calculate_constraint()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "calculating transitivity..."
+##    D.calculate_clustering_coefficient()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
     print "calculating degree..."
     D.calculate_degree()
     time_printer(t1, t2)
@@ -68,22 +68,22 @@ def DVN_script(filepath = "/home/ayu/DVN", dbnames = []):
 ##    D.calculate_component()
 ##    time_printer(t1, t2)
 ##    t2 = datetime.datetime.now()
-    print "calculating subclasses..."
-    D.calculate_subclasses()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "calculating citation counts..."
-    D.calculate_citations()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "calculating total inventors per patent..."
-    D.calculate_inventor_count()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "creating graphml network files for 2000-2003"
-    D.create_graphml_file()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
+##    print "calculating subclasses..."
+##    D.calculate_subclasses()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "calculating citation counts..."
+##    D.calculate_citations()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "calculating total inventors per patent..."
+##    D.calculate_inventor_count()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "creating graphml network files for 2000-2003"
+##    D.create_graphml_file()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
     print "creating csv files for 2000-2003"
     D.create_csv_file()
     time_printer(t1, t2)
@@ -260,6 +260,10 @@ class DVN():
                 print "Edge attributes: {e}".format(e=v.edge_attributes())
                 print "---------------------------------------------------------"
 
+    def close_data(self):
+        # close all sqlite objects
+        for d in self.data.itervalues():
+            d.close()
 
     def create_csv_file(self, begin=2000, end = 2003, increment=3):
         """
@@ -297,8 +301,6 @@ class DVN():
                 Class TEXT,
                 Invnum TEXT,
                 Invnum_N TEXT,
-                coauths TEXT,
-                num_coauths TEXT,
                 num_subclasses INT,
                 backward_cites INT,
                 forward_cites INT,
@@ -311,29 +313,37 @@ class DVN():
             CREATE INDEX inx_patent on invpat_temp(patent);
             """)
             snippet = self.data['invpat'].c.execute("""select firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent,
-                gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N, coauths, num_coauths from invpat where appyearstr between %d AND %d""" % (year, year+2)).fetchall()
+                gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N from invpat where appyearstr between %d AND %d""" % (year, year+2)).fetchall()
             conn.executemany("""INSERT INTO invpat_temp (firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent, gyear, appyearstr, appdatestr, assignee, asgnum, class,
-                  invnum, invnum_N, coauths, num_coauths) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
+                  invnum, invnum_N) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
             # plus the network measures
-            inventors = conn.execute("SELECT DISTINCT Invnum_N FROM invpat_temp").fetchall()
-            for i in inventors:
-                c.execute("UPDATE invpat_temp SET degree = ? WHERE Invnum_N = ?", (self.graph[year].vs(inventor_id_eq = i[0])['degree'], i[0]))
+            n = []
+            for i in self.graphs[year].vs:
+                n.append((i.attributes()['degree'], i.attributes()['inventor_id']))
+            conn.executemany("UPDATE invpat_temp SET degree = ? WHERE Invnum_N = ?", n)
+            conn.commit()
+
+
+##            inventors = conn.execute("SELECT DISTINCT Invnum_N FROM invpat_temp").fetchall()
+##            for i in inventors:
+##                print i[0], self.graphs[year].vs(inventor_id_eq = i[0])['degree'][0]
+##                conn.execute("UPDATE invpat_temp SET degree = ? WHERE Invnum_N = ?", (self.graphs[year].vs(inventor_id_eq = i[0])['degree'][0], i[0]))
             
             # write the temp table to the file
             fname = self.filepath + "invpat{year}.csv".format(year=year)
             print "Creating {f}".format(f=fname)
             f = open(fname, "wb")
             writer = csv.writer(f, lineterminator="\n")
-            writer.writerows([x[1] for x in conn.execute("PRAGMA table_info(invpat_temp)").fetchall()])
+            writer.writerows([[x[1] for x in conn.execute("PRAGMA table_info(invpat_temp)").fetchall()]])
             writer.writerows([asc(x) for x in conn.execute("select * from invpat_temp where appyearstr between %d AND %d" %
                                                                             (year, year+2)).fetchall()])
             writer = None
             f.close()
             conn.close()
 
-        # close all sqlite objects
-        for d in self.data.itervalues():
-            d.close()
+            self.close_data()
+
+        
 
 if __name__ == "__main__":
     import sys
