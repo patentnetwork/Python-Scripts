@@ -43,18 +43,18 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     print dbnames
     D = DVN(filepath, dbnames)
     D.create_graphs()
-    print "calculating node betweenness.."
-    D.calculate_node_betweenness()
+##    print "calculating node betweenness.."
+##    D.calculate_node_betweenness()
     time_printer(t1)
     t2 = datetime.datetime.now()
-##    print "calculating constraint..."
-##    D.calculate_constraint()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
-##    print "calculating transitivity..."
-##    D.calculate_clustering_coefficient()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
+    print "calculating constraint..."
+    D.calculate_constraint()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
+    print "calculating transitivity..."
+    D.calculate_clustering_coefficient()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "calculating degree..."
     D.calculate_degree()
     time_printer(t1, t2)
@@ -63,27 +63,31 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     #D.calculate_PageRank()
 ##    print "calculating edge betweenness..."
 ##    D.calculate_edge_betweenness()
-##    print "calculating component ranking..."
-##    D.calculate_component()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
-##    print "calculating subclasses..."
-##    D.calculate_subclasses()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
-##    print "calculating citation counts..."
-##    D.calculate_citations()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
-##    print "calculating total inventors per patent..."
-##    D.calculate_inventor_count()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
+    print "calculating component ranking..."
+    D.calculate_component()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
+    print "calculating eigenvector centrality..."
+    D.calculate_eigenvector_centrality()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
+    print "calculating subclasses..."
+    D.calculate_subclasses()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
+    print "calculating citation counts..."
+    D.calculate_citations()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
+    print "calculating total inventors per patent..."
+    D.calculate_inventor_count()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     D.summary()
-##    print "creating graphml network files for 2000-2003"
-##    D.create_graphml_file()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
+    print "creating graphml network files for 2000-2003"
+    D.create_graphml_file(2000)
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "creating csv files for 2000-2006"
     D.create_csv_file()
     time_printer(t1, t2)
@@ -178,7 +182,7 @@ class DVN():
             com = [[x[1], i] for i,x in enumerate(com)]
             com.sort()
             g.vs['component']=[com[x][1] for x in mem]
-            print g.vs['component']
+            #print g.vs['component']
 
     def calculate_subclasses(self):
         """calculate the number of subclasses per patent
@@ -306,7 +310,10 @@ class DVN():
                 totalInventors INT,
                 betweenness REAL,
                 eigenvector_centrality REAL,
-                degree INT
+                node_constraint REAL,
+                degree INT,
+                component INT
+                clustering_coefficient REAL;
             );
             CREATE INDEX idx_invnumN on invpat_temp(invnum_N);
             CREATE INDEX inx_patent on invpat_temp(patent);
@@ -318,8 +325,9 @@ class DVN():
             # plus the network measures
             n = []
             for i in self.graphs[year].vs:
-                n.append((i['degree'], i['betweenness'], i['inventor_id']))
-            conn.executemany("UPDATE invpat_temp SET degree = ?, betweenness = ? WHERE Invnum_N = ?", n)
+                n.append((i['degree'], i['constraint'], i['component'], i['eigenvector_centrality'], i['clustering_coefficient'], i['inventor_id']))
+            conn.executemany("""UPDATE invpat_temp SET degree = ?, node_constraint = ?, component = ?, eigenvector_centrality = ?,
+                             clustering_coefficient = ?, WHERE Invnum_N = ?""", n)
             conn.commit()
             
             # write the temp table to the file
