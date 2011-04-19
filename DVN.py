@@ -313,7 +313,7 @@ class DVN():
                 node_constraint REAL,
                 degree INT,
                 component INT
-                clustering_coefficient REAL;
+                clustering_coefficient REAL
             );
             CREATE INDEX idx_invnumN on invpat_temp(invnum_N);
             CREATE INDEX inx_patent on invpat_temp(patent);
