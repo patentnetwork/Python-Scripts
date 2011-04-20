@@ -45,6 +45,10 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     D.create_graphs()
 ##    print "calculating node betweenness.."
 ##    D.calculate_node_betweenness()
+##    print "calculating pagerank..."
+##    D.calculate_PageRank()
+##    print "calculating edge betweenness..."
+##    D.calculate_edge_betweenness()
     time_printer(t1)
     t2 = datetime.datetime.now()
     print "calculating constraint..."
@@ -59,10 +63,6 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     D.calculate_degree()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
-    #print "calculating pagerank..."
-    #D.calculate_PageRank()
-##    print "calculating edge betweenness..."
-##    D.calculate_edge_betweenness()
     print "calculating component ranking..."
     D.calculate_component()
     time_printer(t1, t2)
@@ -85,7 +85,7 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     t2 = datetime.datetime.now()
     D.summary()
     print "creating graphml network files for 2000-2003"
-    D.create_graphml_file(2000)
+    D.create_graphml_file(year=2000)
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
     print "creating csv files for 2000-2006"
@@ -103,25 +103,40 @@ class DVN():
     initialize a DVN object for uploading patent data to the IQSS DVN
     """
 
-    def __init__(self, filepath, dbnames):
+    def __init__(self, filepath, dbnames, graphml = '', begin = 2000, end = 2006, increment = 3):
         """
         takes a filepath string and a list of dbnames
+        if graphml files already exist, take the list of files and read into graph list as graph objects
+
+        ex:
+        import DVN
+        D = DVN.DVN(filepath='/home/ayu/DVN/', dbnames=['patent', 'invpat', 'citation', 'class'], graphml = ['pat_2000.graphml', 'pat_2003.graphml'])
+        D.summary()
+        D.create_csv_file()
         """
         self.filepath = filepath
         self.data = {}
         self.graphs = {}
+        self.begin = begin
+        self.end = end
+        self.increment = increment
         for dbname in dbnames:
             self.data[dbname] = SQLite.SQLite(filepath + dbname + '.sqlite3', dbname)
+        if graphml:
+            i = 0
+            for year in range(self.begin, self.end, self.increment):
+                self.graphs[year] = igraph.Graph.Read_GraphML(filepath+graphml[i])
+                i = i + 1
         
 
-    def create_graphs(self, begin = 2000, end = 2006, increment = 3):
+    def create_graphs(self):
         """
         create graphML files from the inventor-patent dataset
         for upload to DVN interface (by application year)
 
         inherits the igraph function from the patent team SQLite library
         """
-        for year in range(begin, end, increment):
+        for year in range(self.begin, self.end, self.increment):
             print "Creating graph for {year}".format(year=year)
             self.graphs[year] = self.data['invpat'].igraph(where='AppYearStr BETWEEN %d AND %d' %
                                   (year, year+2), vx="invnum_N").g
@@ -269,7 +284,7 @@ class DVN():
         for d in self.data.itervalues():
             d.close()
 
-    def create_csv_file(self, begin=2000, end = 2006, increment=3):
+    def create_csv_file(self):
         """
         create csv data file for upload to DVN interface
         step 1: slice invpat table into 3 year files
@@ -280,7 +295,7 @@ class DVN():
         def asc(val):
             return [unicodedata.normalize('NFKD', unicode(x)).encode('ascii', 'ignore') for x in val]
 
-        for year in range(begin, end, increment):
+        for year in range(self.begin, self.end, self.increment):
             #create a temporary table in memory to hold all data for each three year period
             conn = sqlite3.connect(":memory:")
             conn.executescript("""
@@ -312,22 +327,23 @@ class DVN():
                 eigenvector_centrality REAL,
                 node_constraint REAL,
                 degree INT,
-                component INT
+                component INT,
                 clustering_coefficient REAL
             );
             CREATE INDEX idx_invnumN on invpat_temp(invnum_N);
             CREATE INDEX inx_patent on invpat_temp(patent);
             """)
             snippet = self.data['invpat'].c.execute("""select firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent,
-                gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N from invpat where appyearstr between %d AND %d""" % (year, year+2)).fetchall()
+                gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N, num_subclasses, backward_cites, forward_cites, totalInventors
+                from invpat where appyearstr between %d AND %d""" % (year, year+2)).fetchall()
             conn.executemany("""INSERT INTO invpat_temp (firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent, gyear, appyearstr, appdatestr, assignee, asgnum, class,
-                  invnum, invnum_N) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
+                  invnum, invnum_N, num_subclasses, backward_cites, forward_cites, totalInventors) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
             # plus the network measures
             n = []
             for i in self.graphs[year].vs:
                 n.append((i['degree'], i['constraint'], i['component'], i['eigenvector_centrality'], i['clustering_coefficient'], i['inventor_id']))
             conn.executemany("""UPDATE invpat_temp SET degree = ?, node_constraint = ?, component = ?, eigenvector_centrality = ?,
-                             clustering_coefficient = ?, WHERE Invnum_N = ?""", n)
+                             clustering_coefficient = ? WHERE Invnum_N = ?""", n)
             conn.commit()
             
             # write the temp table to the file
