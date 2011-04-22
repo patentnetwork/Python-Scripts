@@ -71,24 +71,24 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     D.calculate_eigenvector_centrality()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
-    print "calculating subclasses..."
-    D.calculate_subclasses()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "calculating citation counts..."
-    D.calculate_citations()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "calculating total inventors per patent..."
-    D.calculate_inventor_count()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
+##    print "calculating subclasses..."
+##    D.calculate_subclasses()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "calculating citation counts..."
+##    D.calculate_citations()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "calculating total inventors per patent..."
+##    D.calculate_inventor_count()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
     D.summary()
     print "creating graphml network files for 2000-2003"
-    D.create_graphml_file(year=2000)
+    D.create_graphml_file()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
-    print "creating csv files for 2000-2006"
+    print "creating csv files for 1975-2010"
     D.create_csv_file()
     time_printer(t1, t2)
     print "DONE"
@@ -103,7 +103,7 @@ class DVN():
     initialize a DVN object for uploading patent data to the IQSS DVN
     """
 
-    def __init__(self, filepath, dbnames, graphml = '', begin = 2000, end = 2006, increment = 3):
+    def __init__(self, filepath, dbnames, graphml = '', begin = 1975, end = 2010, increment = 3):
         """
         takes a filepath string and a list of dbnames
         if graphml files already exist, take the list of files and read into graph list as graph objects
