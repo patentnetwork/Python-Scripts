@@ -43,6 +43,7 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     print dbnames
     D = DVN(filepath, dbnames)
     D.create_graphs()
+##    Might not include betweenness 
 ##    print "calculating node betweenness.."
 ##    D.calculate_node_betweenness()
 ##    print "calculating pagerank..."
@@ -71,6 +72,7 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     D.calculate_eigenvector_centrality()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
+    ## Run only once (columns added to invpat db file)
 ##    print "calculating subclasses..."
 ##    D.calculate_subclasses()
 ##    time_printer(t1, t2)
@@ -84,11 +86,11 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
 ##    time_printer(t1, t2)
 ##    t2 = datetime.datetime.now()
     D.summary()
-    print "creating graphml network files for 2000-2003"
+    print "creating graphml network files"
     D.create_graphml_file()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
-    print "creating csv files for 1975-2010"
+    print "creating csv files"
     D.create_csv_file()
     time_printer(t1, t2)
     print "DONE"
@@ -312,8 +314,8 @@ class DVN():
                 InvSeq INT,
                 Patent TEXT,
                 GYear INT,
-                AppYearStr TEXT,
-                AppDateStr TEXT,
+                AppYear TEXT,
+                AppDate TEXT,
                 Assignee TEXT,
                 AsgNum INT,
                 Class TEXT,
@@ -336,7 +338,7 @@ class DVN():
             snippet = self.data['invpat'].c.execute("""select firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent,
                 gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N, num_subclasses, backward_cites, forward_cites, totalInventors
                 from invpat where appyearstr between %d AND %d""" % (year, year+2)).fetchall()
-            conn.executemany("""INSERT INTO invpat_temp (firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent, gyear, appyearstr, appdatestr, assignee, asgnum, class,
+            conn.executemany("""INSERT INTO invpat_temp (firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent, gyear, appyear, appdate, assignee, asgnum, class,
                   invnum, invnum_N, num_subclasses, backward_cites, forward_cites, totalInventors) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
             # plus the network measures
             n = []
