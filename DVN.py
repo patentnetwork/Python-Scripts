@@ -219,8 +219,8 @@ class DVN():
         select patent, count(patent) as backward_cites from citation group by patent
         select patent, count(citation) as forward_cites from citation group by patent
         """
-        self.data['invpat'].add('backward_cites', 'INT')
-        self.data['invpat'].add('forward_cites', 'INT')
+        self.data['invpat'].add('backward_cites', 'INT') # change to 'Refby'
+        self.data['invpat'].add('forward_cites', 'INT')  # change to 'RefCited'
         self.data['citation'].c.execute("select count(patent), citation from citation group by citation")
         self.data['invpat'].c.executemany("UPDATE invpat SET backward_cites=? WHERE patent=?", self.data['citation'].c.fetchall())
         self.data['invpat'].conn.commit()
