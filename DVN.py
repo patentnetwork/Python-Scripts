@@ -85,6 +85,10 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
 ##    D.calculate_inventor_count()
 ##    time_printer(t1, t2)
 ##    t2 = datetime.datetime.now()
+    print "calculating non-patent reference counts..."
+    D.calculate_sciref()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     D.summary()
     print "creating graphml network files"
     D.create_graphml_file()
@@ -216,16 +220,16 @@ class DVN():
     def calculate_citations(self):
         """calculate the number of forward and backward citations per patent
         SQL:
-        select patent, count(patent) as backward_cites from citation group by patent
-        select patent, count(citation) as forward_cites from citation group by patent
+        select patent, count(patent) as RefBy from citation group by patent
+        select patent, count(citation) as RefCited from citation group by patent
         """
-        self.data['invpat'].add('backward_cites', 'INT') # change to 'Refby'
-        self.data['invpat'].add('forward_cites', 'INT')  # change to 'RefCited'
+        self.data['invpat'].add('RefBy', 'INT') # backward_cites change to 'RefBy'
+        self.data['invpat'].add('RefCited', 'INT')  # forward_cites change to 'RefCited'
         self.data['citation'].c.execute("select count(patent), citation from citation group by citation")
-        self.data['invpat'].c.executemany("UPDATE invpat SET backward_cites=? WHERE patent=?", self.data['citation'].c.fetchall())
+        self.data['invpat'].c.executemany("UPDATE invpat SET RefBy=? WHERE patent=?", self.data['citation'].c.fetchall())
         self.data['invpat'].conn.commit()
         self.data['citation'].c.execute("select count(citation), patent from citation group by patent")
-        self.data['invpat'].c.executemany("UPDATE invpat SET forward_cites=? WHERE patent=?", self.data['citation'].c.fetchall())
+        self.data['invpat'].c.executemany("UPDATE invpat SET RefCited=? WHERE patent=?", self.data['citation'].c.fetchall())
         self.data['invpat'].conn.commit()
 
     def calculate_inventor_count(self):
@@ -234,6 +238,15 @@ class DVN():
         self.data['invpat'].add('totalInventors', 'INT')
         self.data['invpat'].c.execute("select count(distinct invnum_N), patent from invpat group by patent")
         self.data['invpat'].c.executemany("UPDATE invpat SET totalInventors=? WHERE patent=?", self.data['invpat'].c.fetchall())
+        self.data['invpat'].conn.commit()
+
+    def calculate_sciref(self):
+        """calculate total number of non-patent references per patent and add data to scirefcnt column
+           note: not all patents have non-patent references!
+        """
+        self.data['invpat'].add('scirefcnt', 'INT')
+        self.data['sciref'].c.execute("select count(*), patent from sciref group by patent")
+        self.data['invpat'].c.executemany("UPDATE invpat SET scirefcnt=? WHERE patent=?", self.data['sciref'].c.fetchall())
         self.data['invpat'].conn.commit()
         
 
@@ -322,8 +335,8 @@ class DVN():
                 Invnum TEXT,
                 Invnum_N TEXT,
                 num_subclasses INT,
-                backward_cites INT,
-                forward_cites INT,
+                RefBy INT,
+                RefCited INT,
                 totalInventors INT,
                 betweenness REAL,
                 eigenvector_centrality REAL,
@@ -336,10 +349,10 @@ class DVN():
             CREATE INDEX inx_patent on invpat_temp(patent);
             """)
             snippet = self.data['invpat'].c.execute("""select firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent,
-                gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N, num_subclasses, backward_cites, forward_cites, totalInventors
+                gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N, num_subclasses, RefBy, RefCited, totalInventors
                 from invpat where appyearstr between %d AND %d""" % (year, year+2)).fetchall()
             conn.executemany("""INSERT INTO invpat_temp (firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent, gyear, appyear, appdate, assignee, asgnum, class,
-                  invnum, invnum_N, num_subclasses, backward_cites, forward_cites, totalInventors) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
+                  invnum, invnum_N, num_subclasses, RefBy, RefCited, totalInventors) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
             # plus the network measures
             n = []
             for i in self.graphs[year].vs:
