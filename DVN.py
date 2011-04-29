@@ -1,12 +1,7 @@
 import sqlite3, sys, SQLite, igraph, csv, senGraph, datetime
 
-# TODO:
-# Calculate component ranking and assign a component identifier
-# Calculate eigenvector centrality within components
-# Add function to get vertices of the component number
-
 # Option 1: run the script directly from the command line
-# TODO: implement this!
+
 
 def time_printer(program_start = 0, calc_start = 0):
     now = datetime.datetime.now()
