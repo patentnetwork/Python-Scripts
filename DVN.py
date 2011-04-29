@@ -23,18 +23,16 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     python DVN.py <directory> <database names - variable length, separate by spaces>
 
     Example:
-    python DVN.py /home/ayu/DVN/ invpat
+    python DVN.py /home/ayu/DVN/ invpat citation class patent sciref
     
     (1) Create network data files based on invpat for upload to DVN (graphml format)
     (2) Create csv files for data and pre-calculated network measures
         network measures calculated:
             node measures:
-                - centrality (degree, betweenness)
+                - centrality (degree, eigenvector)
                 - clustering coefficient
                 - constraint
-                - component number
-            edge measures:
-                - betweenness
+                - component number and size
     
     """
     t1 = datetime.datetime.now()
@@ -157,7 +155,7 @@ class DVN():
         # calculate eigenvector centrality within each component
         if(year):
             return self.graphs[year].subgraph(self.graphs[year].vs.
-                                              select(component_eq=component)).eigenvector_centrality()
+                                              select(component_ranking_eq=component)).eigenvector_centrality()
         else:
             for g in self.graphs.itervalues():
                 g.vs['eigenvector_centrality'] = g.eigenvector_centrality()
@@ -193,17 +191,22 @@ class DVN():
             g.es['betweenness'] = g.edge_betweenness()
 
     def calculate_component(self):
-        """within each graph, calculate the component that each node belongs to
+        """within each graph, calculate the component ranking and size that each node belongs to
         """
         for g in self.graphs.itervalues():
             print g
-            mem = g.clusters().membership
-            com = [[mem.count(x),x] for x in range(0,max(mem)+1)]
-            com.sort(reverse=True)
-            com = [[x[1], i] for i,x in enumerate(com)]
-            com.sort()
-            g.vs['component']=[com[x][1] for x in mem]
-            #print g.vs['component']
+            clusters = g.clusters()
+            mem = clusters.membership
+            sizes = clusters.sizes()
+            com = [[size,idx] for idx,size in enumerate(sizes)]
+            com.sort(reverse=True) #now the list is assorted descending by size
+            components = {}
+            for i,c in enumerate(com):
+                components[c[1]] = [i, c[0]] #each element is {component index:[component rank, component size]}
+            component_rankings = [components[m][0] for m in mem]
+            component_sizes = [components[m][1] for m in mem]
+            g.vs['component_ranking'] = component_rankings
+            g.vs['component_sizes'] = component_sizes
 
     def calculate_subclasses(self):
         """calculate the number of subclasses per patent
@@ -223,8 +226,8 @@ class DVN():
         select patent, count(patent) as RefBy from citation group by patent
         select patent, count(citation) as RefCited from citation group by patent
         """
-        self.data['invpat'].add('RefBy', 'INT') # backward_cites change to 'RefBy'
-        self.data['invpat'].add('RefCited', 'INT')  # forward_cites change to 'RefCited'
+        self.data['invpat'].add('RefBy', 'INT') # backward_cites changed to 'RefBy'
+        self.data['invpat'].add('RefCited', 'INT')  # forward_cites changed to 'RefCited'
         self.data['citation'].c.execute("select count(patent), citation from citation group by citation")
         self.data['invpat'].c.executemany("UPDATE invpat SET RefBy=? WHERE patent=?", self.data['citation'].c.fetchall())
         self.data['invpat'].conn.commit()
@@ -259,8 +262,8 @@ class DVN():
         """returns the number of vertices in the given component for the given year
            if no component given, by default returns the number of vertices in the whole graph by year
         """
-        if(component):
-            return len(self.graphs[year].vs.select(component_eq=component))
+        if(component != ''):
+            return len(self.graphs[year].vs.select(component_ranking_eq=component))
         else:
             return len(self.graphs[year].vs)
         
@@ -342,7 +345,8 @@ class DVN():
                 eigenvector_centrality REAL,
                 node_constraint REAL,
                 degree INT,
-                component INT,
+                component_ranking INT,
+                component_size INT,
                 clustering_coefficient REAL
             );
             CREATE INDEX idx_invnumN on invpat_temp(invnum_N);
@@ -356,9 +360,10 @@ class DVN():
             # plus the network measures
             n = []
             for i in self.graphs[year].vs:
-                n.append((i['degree'], i['constraint'], i['component'], i['eigenvector_centrality'], i['clustering_coefficient'], i['inventor_id']))
-            conn.executemany("""UPDATE invpat_temp SET degree = ?, node_constraint = ?, component = ?, eigenvector_centrality = ?,
-                             clustering_coefficient = ? WHERE Invnum_N = ?""", n)
+                n.append((i['degree'], i['constraint'], i['component_ranking'], i['component_size'], i['eigenvector_centrality'],
+                          i['clustering_coefficient'], i['inventor_id']))
+            conn.executemany("""UPDATE invpat_temp SET degree = ?, node_constraint = ?, component_ranking = ?, component_size = ?,
+                          eigenvector_centrality = ?,clustering_coefficient = ? WHERE Invnum_N = ?""", n)
             conn.commit()
             
             # write the temp table to the file
