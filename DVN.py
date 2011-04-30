@@ -66,18 +66,18 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
     ## Run only once (columns added to invpat db file)
-##    print "calculating subclasses..."
-##    D.calculate_subclasses()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
-##    print "calculating citation counts..."
-##    D.calculate_citations()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
-##    print "calculating total inventors per patent..."
-##    D.calculate_inventor_count()
-##    time_printer(t1, t2)
-##    t2 = datetime.datetime.now()
+    print "calculating subclasses..."
+    D.calculate_subclasses()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
+    print "calculating citation counts..."
+    D.calculate_citations()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
+    print "calculating total inventors per patent..."
+    D.calculate_inventor_count()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
     print "calculating non-patent reference counts..."
     D.calculate_sciref()
     time_printer(t1, t2)
@@ -267,10 +267,10 @@ class DVN():
         else create graphml for all years in current directory
         """
         if self.graphs.get(year):
-            self.graphs[year].save((self.filepath + "pat_{year}.graphml").format(year=year))
+            self.graphs[year].save((self.filepath + "pat_{year}_uc.graphml").format(year=year))
         else:
             for k,v in self.graphs.iteritems():
-                v.save((self.filepath +"pat_{year}.graphml").format(year=k))
+                v.save((self.filepath +"pat_{year}_uc.graphml").format(year=k))
 
     def summary(self):
         """print a summary of the DVN object, also prints summary network statistics per graph 
@@ -336,7 +336,6 @@ class DVN():
                 RefBy INT,
                 RefCited INT,
                 totalInventors INT,
-                betweenness REAL,
                 eigenvector_centrality REAL,
                 node_constraint REAL,
                 degree INT,
@@ -362,7 +361,7 @@ class DVN():
             conn.commit()
             
             # write the temp table to the file
-            fname = self.filepath + "invpat{year}.csv".format(year=year)
+            fname = self.filepath + "invpat{year}_uc.csv".format(year=year)
             print "Creating {f}".format(f=fname)
             f = open(fname, "wb")
             writer = csv.writer(f, lineterminator="\n")

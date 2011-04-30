@@ -28,9 +28,9 @@ def bmVerify(results, filepath="", outdir = ""):
         for result in results:
                 uqB = "invnum_N"
                 tblB = "invpat"
-                fileS = "/home/ayu/benchmark/DefTruth5.1.csv"
+                fileS = "/home/ayu/benchmark/DefTruth5.2.csv"
                 fileB = filepath + "{result}.sqlite3".format(result=result)
-                output = outdir + "{result}_nb.csv".format(result=result)
+                output = outdir + "{result}_bm5.2.csv".format(result=result)
 
                 t=datetime.datetime.now()
 
