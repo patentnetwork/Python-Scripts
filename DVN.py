@@ -201,7 +201,7 @@ class DVN():
             component_rankings = [components[m][0] for m in mem]
             component_sizes = [components[m][1] for m in mem]
             g.vs['component_ranking'] = component_rankings
-            g.vs['component_sizes'] = component_sizes
+            g.vs['component_size'] = component_sizes
 
     def calculate_subclasses(self):
         """calculate the number of subclasses per patent
@@ -267,10 +267,10 @@ class DVN():
         else create graphml for all years in current directory
         """
         if self.graphs.get(year):
-            self.graphs[year].save((self.filepath + "pat_{year}_uc.graphml").format(year=year))
+            self.graphs[year].save((self.filepath + "pat_{year}_oc.graphml").format(year=year))
         else:
             for k,v in self.graphs.iteritems():
-                v.save((self.filepath +"pat_{year}_uc.graphml").format(year=k))
+                v.save((self.filepath +"pat_{year}_oc.graphml").format(year=k))
 
     def summary(self):
         """print a summary of the DVN object, also prints summary network statistics per graph 
@@ -361,7 +361,7 @@ class DVN():
             conn.commit()
             
             # write the temp table to the file
-            fname = self.filepath + "invpat{year}_uc.csv".format(year=year)
+            fname = self.filepath + "invpat{year}_oc.csv".format(year=year)
             print "Creating {f}".format(f=fname)
             f = open(fname, "wb")
             writer = csv.writer(f, lineterminator="\n")
