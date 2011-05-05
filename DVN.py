@@ -1,5 +1,11 @@
 import sqlite3, sys, SQLite, igraph, csv, senGraph, datetime
 
+#TODO:
+# calculate unique degree
+# consistent rankings for components of the same size
+# option to output .sqlite3 files for the three year chunk files
+# ***** above is completed, just need to test and check
+
 # Option 1: run the script directly from the command line
 
 
@@ -53,16 +59,16 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     D.calculate_clustering_coefficient()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
-    print "calculating degree..."
-    D.calculate_degree()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
     print "calculating component ranking..."
     D.calculate_component()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
     print "calculating eigenvector centrality..."
     D.calculate_eigenvector_centrality()
+    time_printer(t1, t2)
+    t2 = datetime.datetime.now()
+    print "calculating degree..."
+    D.calculate_degree()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
     ## Run only once (columns added to invpat db file)
@@ -170,6 +176,9 @@ class DVN():
         """calculate degree centrality for each node in all networks"""
         for g in self.graphs.itervalues():
             g.vs['degree'] = g.degree()
+            # simplify() to get unique degree
+            g.simplify()
+            g.vs['unique_degree'] = g.degree()
 
     def calculate_PageRank(self, year='', component=''):
         """calculate pagerank for each node in all networks"""
@@ -196,8 +205,15 @@ class DVN():
             com = [[size,idx] for idx,size in enumerate(sizes)]
             com.sort(reverse=True) #now the list is assorted descending by size
             components = {}
+            size = com[0][0]
+            rank = 0
             for i,c in enumerate(com):
-                components[c[1]] = [i, c[0]] #each element is {component index:[component rank, component size]}
+                if size != c[0]:
+                    size = c[0]
+                    rank = rank + 1
+                #components[c[1]] = [i, c[0]] #each element is {component index:[component rank, component size]}
+                #give each component with same size same ranking!
+                components[c[1]] = [rank, size]
             component_rankings = [components[m][0] for m in mem]
             component_sizes = [components[m][1] for m in mem]
             g.vs['component_ranking'] = component_rankings
@@ -300,9 +316,6 @@ class DVN():
     def create_csv_file(self):
         """
         create csv data file for upload to DVN interface
-        step 1: slice invpat table into 3 year files
-        step 2: export to csv format
-        TODO: insert network data from graphs here
         """
         import unicodedata
         def asc(val):
@@ -310,7 +323,9 @@ class DVN():
 
         for year in range(self.begin, self.end, self.increment):
             #create a temporary table in memory to hold all data for each three year period
-            conn = sqlite3.connect(":memory:")
+            #conn = sqlite3.connect(":memory:")
+            #create a sqlite3 file for each invpat_temp
+            conn = sqlite3.connect("invpat{year}_oc.sqlite3".format(year=year))
             conn.executescript("""
             CREATE TABLE invpat_temp(
                 Firstname TEXT,
