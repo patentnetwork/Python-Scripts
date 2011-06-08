@@ -3,7 +3,7 @@ import sqlite3, sys, SQLite, igraph, csv, senGraph, datetime
 #TODO:
 # calculate unique degree
 # consistent rankings for components of the same size
-# option to output .sqlite3 files for the three year chunk files
+# option to output .sqlite3 files for the three year chunk files ... actually, instead create a separate WHOLE sqlite3 file for invpat & three year files...
 # ***** above is completed, just need to test and check
 
 # Option 1: run the script directly from the command line
@@ -71,29 +71,29 @@ def DVN_script(filepath = "/home/ayu/DVN/", dbnames = []):
     D.calculate_degree()
     time_printer(t1, t2)
     t2 = datetime.datetime.now()
-    ## Run only once (columns added to invpat db file)
-    print "calculating subclasses..."
-    D.calculate_subclasses()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "calculating citation counts..."
-    D.calculate_citations()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "calculating total inventors per patent..."
-    D.calculate_inventor_count()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "calculating non-patent reference counts..."
-    D.calculate_sciref()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    D.summary()
-    print "creating graphml network files"
-    D.create_graphml_file()
-    time_printer(t1, t2)
-    t2 = datetime.datetime.now()
-    print "creating csv files"
+##    ## Run only once (columns added to invpat db file)
+##    print "calculating subclasses..."
+##    D.calculate_subclasses()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "calculating citation counts..."
+##    D.calculate_citations()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "calculating total inventors per patent..."
+##    D.calculate_inventor_count()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    print "calculating non-patent reference counts..."
+##    D.calculate_sciref()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+##    D.summary()
+##    print "creating graphml network files"
+##    D.create_graphml_file()
+##    time_printer(t1, t2)
+##    t2 = datetime.datetime.now()
+    print "creating files"
     D.create_csv_file()
     time_printer(t1, t2)
     print "DONE"
@@ -205,8 +205,10 @@ class DVN():
             com = [[size,idx] for idx,size in enumerate(sizes)]
             com.sort(reverse=True) #now the list is assorted descending by size
             components = {}
+            # this was added
             size = com[0][0]
             rank = 0
+            # --- end of added part
             for i,c in enumerate(com):
                 if size != c[0]:
                     size = c[0]
@@ -325,7 +327,7 @@ class DVN():
             #create a temporary table in memory to hold all data for each three year period
             #conn = sqlite3.connect(":memory:")
             #create a sqlite3 file for each invpat_temp
-            conn = sqlite3.connect("invpat{year}_oc.sqlite3".format(year=year))
+            conn = sqlite3.connect("/home/ayu/DVN/lower_results/invpat{year}_oc.sqlite3".format(year=year))
             conn.executescript("""
             CREATE TABLE invpat_temp(
                 Firstname TEXT,
@@ -348,12 +350,14 @@ class DVN():
                 Invnum TEXT,
                 Invnum_N TEXT,
                 num_subclasses INT,
+                scirefcnt INT,
                 RefBy INT,
                 RefCited INT,
                 totalInventors INT,
                 eigenvector_centrality REAL,
                 node_constraint REAL,
                 degree INT,
+                unique_degree INT,
                 component_ranking INT,
                 component_size INT,
                 clustering_coefficient REAL
@@ -362,28 +366,28 @@ class DVN():
             CREATE INDEX inx_patent on invpat_temp(patent);
             """)
             snippet = self.data['invpat'].c.execute("""select firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent,
-                gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N, num_subclasses, RefBy, RefCited, totalInventors
+                gyear, appyearstr, appdatestr, assignee, asgnum, class, invnum, invnum_N, num_subclasses, scirefcnt, RefBy, RefCited, totalInventors
                 from invpat where appyearstr between %d AND %d""" % (year, year+2)).fetchall()
             conn.executemany("""INSERT INTO invpat_temp (firstname, lastname, street, city, state, country, zipcode, lat, lon, invseq, patent, gyear, appyear, appdate, assignee, asgnum, class,
-                  invnum, invnum_N, num_subclasses, RefBy, RefCited, totalInventors) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
+                  invnum, invnum_N, num_subclasses, scirefcnt, RefBy, RefCited, totalInventors) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", snippet)
             # plus the network measures
             n = []
             for i in self.graphs[year].vs:
-                n.append((i['degree'], i['constraint'], i['component_ranking'], i['component_size'], i['eigenvector_centrality'],
+                n.append((i['degree'], i['unique_degree'], i['constraint'], i['component_ranking'], i['component_size'], i['eigenvector_centrality'],
                           i['clustering_coefficient'], i['inventor_id']))
-            conn.executemany("""UPDATE invpat_temp SET degree = ?, node_constraint = ?, component_ranking = ?, component_size = ?,
+            conn.executemany("""UPDATE invpat_temp SET degree = ?, unique_degree = ?, node_constraint = ?, component_ranking = ?, component_size = ?,
                           eigenvector_centrality = ?,clustering_coefficient = ? WHERE Invnum_N = ?""", n)
             conn.commit()
             
             # write the temp table to the file
-            fname = self.filepath + "invpat{year}_oc.csv".format(year=year)
-            print "Creating {f}".format(f=fname)
-            f = open(fname, "wb")
-            writer = csv.writer(f, lineterminator="\n")
-            writer.writerows([[x[1] for x in conn.execute("PRAGMA table_info(invpat_temp)").fetchall()]])
-            writer.writerows([asc(x) for x in conn.execute("select * from invpat_temp").fetchall()])
-            writer = None
-            f.close()
+##            fname = self.filepath + "invpat{year}_oc.csv".format(year=year)
+##            print "Creating {f}".format(f=fname)
+##            f = open(fname, "wb")
+##            writer = csv.writer(f, lineterminator="\n")
+##            writer.writerows([[x[1] for x in conn.execute("PRAGMA table_info(invpat_temp)").fetchall()]])
+##            writer.writerows([asc(x) for x in conn.execute("select * from invpat_temp").fetchall()])
+##            writer = None
+##            f.close()
             conn.close()
 
         self.close_data()

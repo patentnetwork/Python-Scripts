@@ -28,9 +28,9 @@ def bmVerify(results, filepath="", outdir = ""):
         for result in results:
                 uqB = "invnum_N"
                 tblB = "invpat"
-                fileS = "/home/ayu/benchmark/DefTruth5.2.csv"
+                fileS = "/home/ayu/benchmark/DefTruth6.csv"
                 fileB = filepath + "{result}.sqlite3".format(result=result)
-                output = outdir + "{result}_bm5.2.csv".format(result=result)
+                output = outdir + "{result}_bm6.csv".format(result=result)
 
                 t=datetime.datetime.now()
 
@@ -58,7 +58,7 @@ def bmVerify(results, filepath="", outdir = ""):
                             if dataS2[j][i].isdigit():
                                 dataS2[j][i] = x % int(dataS2[j][i])
 
-                conn = sqlite3.connect(":memory:")
+                conn = sqlite3.connect(outdir + "{detail}_bm6.sqlite3".format(detail=result)) #change back to ::memory:: if needed outdir + "{detail}_bm6.sqlite3".format(detail=result)
                 conn.create_function("jarow", 2, jarow)
                 conn.create_function("errD", 2, lambda x,y: (x!=y) and 1 or None)
                 conn.create_aggregate("freqUQ", 1, freqUQ)
@@ -178,8 +178,10 @@ def bmVerify(results, filepath="", outdir = ""):
                        Recall: {recall:.2%}
                   File Detail: {filename}
                          Time: {time}
+                    Benchmark: {benchmark}
                 """.format(original = orig, new = len(rep)-orig, total = len(rep), overclump = len(rep)-orig, o = o,
-                           underclump = errm, u = u, recall = recall, precision = recall/(recall+o), filename = output, time = datetime.datetime.now()-t)
+                           underclump = errm, u = u, recall = recall, precision = recall/(recall+o), filename = output,
+                           time = datetime.datetime.now()-t, benchmark = fileS)
                 c.close()
                 conn.close()
 
