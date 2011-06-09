@@ -244,8 +244,12 @@ class DVN():
         self.data['citation'].c.execute("select count(patent), citation from citation group by citation")
         self.data['invpat'].c.executemany("UPDATE invpat SET RefBy=? WHERE patent=?", self.data['citation'].c.fetchall())
         self.data['invpat'].conn.commit()
+        self.data['invpat'].c.execute("UPDATE invpat SET RefBy=0 WHERE RefBy IS NULL")
+        self.data['invpat'].conn.commit()
         self.data['citation'].c.execute("select count(citation), patent from citation group by patent")
         self.data['invpat'].c.executemany("UPDATE invpat SET RefCited=? WHERE patent=?", self.data['citation'].c.fetchall())
+        self.data['invpat'].conn.commit()
+        self.data['invpat'].c.execute("UPDATE invpat SET RefCited=0 WHERE RefCited IS NULL")
         self.data['invpat'].conn.commit()
 
     def calculate_inventor_count(self):
@@ -263,6 +267,8 @@ class DVN():
         self.data['invpat'].add('scirefcnt', 'INT')
         self.data['sciref'].c.execute("select count(*), patent from sciref group by patent")
         self.data['invpat'].c.executemany("UPDATE invpat SET scirefcnt=? WHERE patent=?", self.data['sciref'].c.fetchall())
+        self.data['invpat'].conn.commit()
+        self.data['invpat'].c.execute("UPDATE invpat SET scirefcnt=0 WHERE scirefcnt IS NULL")
         self.data['invpat'].conn.commit()
         
 
